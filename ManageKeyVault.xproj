@@ -7,7 +7,7 @@
 
   <Import Project="$(VSToolsPath)\DotNet\Microsoft.DotNet.Props" Condition="'$(VSToolsPath)' != ''" />
   <PropertyGroup Label="Globals">
-    <ProjectGuid>51019738-1118-4676-a1ad-81c9e8138715</ProjectGuid>
+    <ProjectGuid>e3b130ed-b77a-41b3-8185-8d4f3c0c91c3</ProjectGuid>
     <RootNamespace>ManageKeyVault</RootNamespace>
     <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)'=='' ">.\obj</BaseIntermediateOutputPath>
     <OutputPath Condition="'$(OutputPath)'=='' ">.\bin\</OutputPath>
