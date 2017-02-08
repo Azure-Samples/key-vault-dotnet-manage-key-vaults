@@ -12,17 +12,53 @@ using Microsoft.Azure.Management.Storage.Fluent;
 using Microsoft.Azure.Management.Storage.Fluent.Models;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using Microsoft.Azure.Management.Sql.Fluent;
-using Microsoft.Azure.Management.Trafficmanager.Fluent;
+using Microsoft.Azure.Management.TrafficManager.Fluent;
 using Microsoft.Azure.Management.Dns.Fluent;
+using Microsoft.Azure.Management.Resource.Fluent;
 
 namespace Microsoft.Azure.Management.Samples.Common
 {
     public static class Utilities
     {
+        public static Action<string> LoggerMethod { get; set; }
+        public static Func<string> PauseMethod { get; set; }
+
+        static Utilities()
+        {
+            LoggerMethod = Console.WriteLine;
+            PauseMethod = Console.ReadLine;
+        }
+
+        public static void Log(string message)
+        {
+            LoggerMethod.Invoke(message);
+        }
+
+        public static void Log(object obj)
+        {
+            if (obj != null)
+            {
+                LoggerMethod.Invoke(obj.ToString());
+            }
+            else
+            {
+                LoggerMethod.Invoke("(null)");
+            }
+        }
+
+        public static void Log()
+        {
+            Utilities.Log("");
+        }
+
+        public static string ReadLine()
+        {
+            return PauseMethod.Invoke();
+        }
+
         // Print app gateway info
         public static void PrintAppGateway(IApplicationGateway resource)
         {
@@ -80,7 +116,7 @@ namespace Microsoft.Azure.Management.Samples.Common
             foreach (var backend in backends.Values)
             {
                 info.Append("\n\t\tName: ").Append(backend.Name)
-                    .Append("\n\t\t\tAssociated NIC IP configuration IDs: ").Append(backend.BackendNicIpConfigurationNames.Keys.ToString());
+                    .Append("\n\t\t\tAssociated NIC IP configuration IDs: ").Append(string.Join(", ", backend.BackendNicIpConfigurationNames.Keys.ToArray()));
 
                 // Show addresses
                 var addresses = backend.Addresses;
@@ -205,7 +241,63 @@ namespace Microsoft.Azure.Management.Samples.Common
                 }
             }
 
-            Console.WriteLine(info.ToString());
+            Utilities.Log(info.ToString());
+        }
+
+        public static void PrintVirtualMachineCustomImage(IVirtualMachineCustomImage image)
+        {
+            var builder = new StringBuilder().Append("Virtual machine custom image: ").Append(image.Id)
+            .Append("Name: ").Append(image.Name)
+            .Append("\n\tResource group: ").Append(image.ResourceGroupName)
+            .Append("\n\tCreated from virtual machine: ").Append(image.SourceVirtualMachineId);
+
+            builder.Append("\n\tOS disk image: ")
+                    .Append("\n\t\tOperating system: ").Append(image.OsDiskImage.OsType)
+                    .Append("\n\t\tOperating system state: ").Append(image.OsDiskImage.OsState)
+                    .Append("\n\t\tCaching: ").Append(image.OsDiskImage.Caching)
+                    .Append("\n\t\tSize (GB): ").Append(image.OsDiskImage.DiskSizeGB);
+            if (image.IsCreatedFromVirtualMachine)
+            {
+                builder.Append("\n\t\tSource virtual machine: ").Append(image.SourceVirtualMachineId);
+            }
+            if (image.OsDiskImage.ManagedDisk != null)
+            {
+                builder.Append("\n\t\tSource managed disk: ").Append(image.OsDiskImage.ManagedDisk.Id);
+            }
+            if (image.OsDiskImage.Snapshot != null)
+            {
+                builder.Append("\n\t\tSource snapshot: ").Append(image.OsDiskImage.Snapshot.Id);
+            }
+            if (image.OsDiskImage.BlobUri != null)
+            {
+                builder.Append("\n\t\tSource un-managed vhd: ").Append(image.OsDiskImage.BlobUri);
+            }
+            if (image.DataDiskImages != null)
+            {
+                foreach (var diskImage  in image.DataDiskImages.Values)
+                {
+                    builder.Append("\n\tDisk Image (Lun) #: ").Append(diskImage.Lun)
+                            .Append("\n\t\tCaching: ").Append(diskImage.Caching)
+                            .Append("\n\t\tSize (GB): ").Append(diskImage.DiskSizeGB);
+                    if (image.IsCreatedFromVirtualMachine)
+                    {
+                        builder.Append("\n\t\tSource virtual machine: ").Append(image.SourceVirtualMachineId);
+                    }
+                    if (diskImage.ManagedDisk != null)
+                    {
+                        builder.Append("\n\t\tSource managed disk: ").Append(diskImage.ManagedDisk.Id);
+                    }
+                    if (diskImage.Snapshot != null)
+                    {
+                        builder.Append("\n\t\tSource snapshot: ").Append(diskImage.Snapshot.Id);
+                    }
+                    if (diskImage.BlobUri != null)
+                    {
+                        builder.Append("\n\t\tSource un-managed vhd: ").Append(diskImage.BlobUri);
+                    }
+                }
+            }
+            Log(builder.ToString());
         }
 
         public static void PrintVirtualMachine(IVirtualMachine virtualMachine)
@@ -264,9 +356,19 @@ namespace Microsoft.Azure.Management.Samples.Common
                     storageProfile.Append("\n\t\t\tCreateOption: ").Append(disk.CreateOption);
                     storageProfile.Append("\n\t\t\tDiskSizeGB: ").Append(disk.DiskSizeGB);
                     storageProfile.Append("\n\t\t\tLun: ").Append(disk.Lun);
-                    if (disk.Vhd.Uri != null)
+                    if (virtualMachine.IsManagedDiskEnabled)
                     {
-                        storageProfile.Append("\n\t\t\tVhd Uri: ").Append(disk.Vhd.Uri);
+                        if (disk.ManagedDisk != null)
+                        {
+                            storageProfile.Append("\n\t\t\tManaged Disk Id: ").Append(disk.ManagedDisk.Id);
+                        }
+                    }
+                    else
+                    {
+                        if (disk.Vhd.Uri != null)
+                        {
+                            storageProfile.Append("\n\t\t\tVhd Uri: ").Append(disk.Vhd.Uri);
+                        }
                     }
                     if (disk.Image != null)
                     {
@@ -274,26 +376,34 @@ namespace Microsoft.Azure.Management.Samples.Common
                     }
                 }
             }
-
-            var osProfile = new StringBuilder().Append("\n\tOSProfile: ");
-            osProfile.Append("\n\t\tComputerName:").Append(virtualMachine.OsProfile.ComputerName);
-            if (virtualMachine.OsProfile.WindowsConfiguration != null)
+            StringBuilder osProfile;
+            if (virtualMachine.OsProfile != null)
             {
-                osProfile.Append("\n\t\t\tWindowsConfiguration: ");
-                osProfile.Append("\n\t\t\t\tProvisionVMAgent: ")
-                        .Append(virtualMachine.OsProfile.WindowsConfiguration.ProvisionVMAgent);
-                osProfile.Append("\n\t\t\t\tEnableAutomaticUpdates: ")
-                        .Append(virtualMachine.OsProfile.WindowsConfiguration.EnableAutomaticUpdates);
-                osProfile.Append("\n\t\t\t\tTimeZone: ")
-                        .Append(virtualMachine.OsProfile.WindowsConfiguration.TimeZone);
+                osProfile = new StringBuilder().Append("\n\tOSProfile: ");
+
+                osProfile.Append("\n\t\tComputerName:").Append(virtualMachine.OsProfile.ComputerName);
+                if (virtualMachine.OsProfile.WindowsConfiguration != null)
+                {
+                    osProfile.Append("\n\t\t\tWindowsConfiguration: ");
+                    osProfile.Append("\n\t\t\t\tProvisionVMAgent: ")
+                            .Append(virtualMachine.OsProfile.WindowsConfiguration.ProvisionVMAgent);
+                    osProfile.Append("\n\t\t\t\tEnableAutomaticUpdates: ")
+                            .Append(virtualMachine.OsProfile.WindowsConfiguration.EnableAutomaticUpdates);
+                    osProfile.Append("\n\t\t\t\tTimeZone: ")
+                            .Append(virtualMachine.OsProfile.WindowsConfiguration.TimeZone);
+                }
+                if (virtualMachine.OsProfile.LinuxConfiguration != null)
+                {
+                    osProfile.Append("\n\t\t\tLinuxConfiguration: ");
+                    osProfile.Append("\n\t\t\t\tDisablePasswordAuthentication: ")
+                            .Append(virtualMachine.OsProfile.LinuxConfiguration.DisablePasswordAuthentication);
+                }
+            }
+            else
+            {
+                osProfile = new StringBuilder().Append("\n\tOSProfile: null");
             }
 
-            if (virtualMachine.OsProfile.LinuxConfiguration != null)
-            {
-                osProfile.Append("\n\t\t\tLinuxConfiguration: ");
-                osProfile.Append("\n\t\t\t\tDisablePasswordAuthentication: ")
-                        .Append(virtualMachine.OsProfile.LinuxConfiguration.DisablePasswordAuthentication);
-            }
 
             var networkProfile = new StringBuilder().Append("\n\tNetworkProfile: ");
             foreach (var networkInterfaceId in virtualMachine.NetworkInterfaceIds)
@@ -301,7 +411,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                 networkProfile.Append("\n\t\tId:").Append(networkInterfaceId);
             }
 
-            Console.WriteLine(new StringBuilder().Append("Virtual Machine: ").Append(virtualMachine.Id)
+            Utilities.Log(new StringBuilder().Append("Virtual Machine: ").Append(virtualMachine.Id)
                     .Append("Name: ").Append(virtualMachine.Name)
                     .Append("\n\tResource group: ").Append(virtualMachine.ResourceGroupName)
                     .Append("\n\tRegion: ").Append(virtualMachine.Region)
@@ -318,24 +428,23 @@ namespace Microsoft.Azure.Management.Samples.Common
         {
             foreach (var storageAccountKey in storageAccountKeys)
             {
-                Console.WriteLine($"Key {storageAccountKey.KeyName} = {storageAccountKey.Value}");
+                Utilities.Log($"Key {storageAccountKey.KeyName} = {storageAccountKey.Value}");
             }
         }
 
         public static void PrintStorageAccount(IStorageAccount storageAccount)
         {
-            Console.WriteLine($"{storageAccount.Name} created @ {storageAccount.CreationTime}");
+            Utilities.Log($"{storageAccount.Name} created @ {storageAccount.CreationTime}");
         }
 
         public static string CreateRandomName(string namePrefix)
         {
-            var root = Guid.NewGuid().ToString().Replace("-", "");
-            return $"{namePrefix}{root.ToLower().Substring(0, 3)}{(DateTime.UtcNow.Millisecond % 10000000L)}";
+            return SdkContext.RandomResourceName(namePrefix, 30);
         }
 
         public static void PrintAvailabilitySet(IAvailabilitySet resource)
         {
-            Console.WriteLine(new StringBuilder().Append("Availability Set: ").Append(resource.Id)
+            Utilities.Log(new StringBuilder().Append("Availability Set: ").Append(resource.Id)
                 .Append("Name: ").Append(resource.Name)
                 .Append("\n\tResource group: ").Append(resource.ResourceGroupName)
                 .Append("\n\tRegion: ").Append(resource.Region)
@@ -375,7 +484,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                 }
             }
 
-            Console.WriteLine(new StringBuilder().Append("BatchAccount: ").Append(batchAccount.Id)
+            Utilities.Log(new StringBuilder().Append("BatchAccount: ").Append(batchAccount.Id)
                     .Append("Name: ").Append(batchAccount.Name)
                     .Append("\n\tResource group: ").Append(batchAccount.ResourceGroupName)
                     .Append("\n\tRegion: ").Append(batchAccount.Region)
@@ -390,7 +499,7 @@ namespace Microsoft.Azure.Management.Samples.Common
 
         public static void PrintBatchAccountKey(BatchAccountKeys batchAccountKeys)
         {
-            Console.WriteLine("Primary Key (" + batchAccountKeys.Primary + ") Secondary key = ("
+            Utilities.Log("Primary Key (" + batchAccountKeys.Primary + ") Secondary key = ("
                     + batchAccountKeys.Secondary + ")");
         }
 
@@ -416,7 +525,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                         .Append("\n\t\tProtocol: ").Append(rule.Protocol)
                         .Append("\n\t\tPriority: ").Append(rule.Priority);
             }
-            Console.WriteLine(nsgOutput.ToString());
+            Utilities.Log(nsgOutput.ToString());
         }
 
         public static void PrintVirtualNetwork(INetwork network)
@@ -442,12 +551,12 @@ namespace Microsoft.Azure.Management.Samples.Common
                 }
             }
 
-            Console.WriteLine(info.ToString());
+            Utilities.Log(info.ToString());
         }
 
         public static void PrintIpAddress(IPublicIpAddress publicIpAddress)
         {
-            Console.WriteLine(new StringBuilder().Append("Public IP Address: ").Append(publicIpAddress.Id)
+            Utilities.Log(new StringBuilder().Append("Public IP Address: ").Append(publicIpAddress.Id)
                 .Append("Name: ").Append(publicIpAddress.Name)
                 .Append("\n\tResource group: ").Append(publicIpAddress.ResourceGroupName)
                 .Append("\n\tRegion: ").Append(publicIpAddress.Region)
@@ -489,7 +598,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                     .Append("\n\tPrimary virtual network ID: ").Append(resource.PrimaryIpConfiguration.NetworkId)
                     .Append("\n\tPrimary subnet name:").Append(resource.PrimaryIpConfiguration.SubnetName);
 
-            Console.WriteLine(info.ToString());
+            Utilities.Log(info.ToString());
         }
 
         public static void PrintLoadBalancer(ILoadBalancer loadBalancer)
@@ -558,7 +667,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                         .Append("\n\t\t\tProtocol: ").Append(rule.Protocol)
                         .Append("\n\t\t\tFloating IP enabled? ").Append(rule.FloatingIpEnabled)
                         .Append("\n\t\t\tIdle timeout in minutes: ").Append(rule.IdleTimeoutInMinutes)
-                        .Append("\n\t\t\tLoad distribution method: ").Append(rule.LoadDistribution.ToString());
+                        .Append("\n\t\t\tLoad distribution method: ").Append(rule.LoadDistribution);
 
                 var frontend = rule.Frontend;
                 info.Append("\n\t\t\tFrontend: ");
@@ -703,7 +812,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                         .Append(FormatCollection(backend.LoadBalancingRules.Keys));
             }
 
-            Console.WriteLine(info.ToString());
+            Utilities.Log(info.ToString());
         }
 
         public static void PrintVault(IVault vault)
@@ -722,7 +831,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                         .Append("\n\t\tSecret permissions: ").Append(FormatCollection(accessPolicy.Permissions.Secrets));
             }
 
-            Console.WriteLine(info.ToString());
+            Utilities.Log(info.ToString());
         }
 
         public static void PrintRedisCache(IRedisCache redisCache)
@@ -762,7 +871,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                 }
             }
 
-            Console.WriteLine(redisInfo.ToString());
+            Utilities.Log(redisInfo.ToString());
         }
 
         public static void PrintRedisAccessKeys(IRedisAccessKeys redisAccessKeys)
@@ -772,7 +881,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                      .Append("\tPrimary Key: '").Append(redisAccessKeys.PrimaryKey).AppendLine("', ")
                      .Append("\tSecondary Key: '").Append(redisAccessKeys.SecondaryKey).AppendLine("', ");
 
-            Console.WriteLine(redisKeys.ToString());
+            Utilities.Log(redisKeys.ToString());
         }
 
         public static void Print(IAppServiceDomain resource)
@@ -798,7 +907,7 @@ namespace Microsoft.Azure.Management.Samples.Common
             {
                 builder = builder.Append("\n\t\t" + nameServer);
             }
-            Console.WriteLine(builder.ToString());
+            Utilities.Log(builder.ToString());
         }
 
         public static void Print(IAppServiceCertificateOrder resource)
@@ -813,7 +922,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                     .Append("\n\tStatus: ").Append(resource.Status)
                     .Append("\n\tIssuance time: ").Append(resource.LastCertificateIssuanceTime)
                     .Append("\n\tSigned certificate: ").Append(resource.SignedCertificate == null ? null : resource.SignedCertificate.Thumbprint);
-            Console.WriteLine(builder.ToString());
+            Utilities.Log(builder.ToString());
         }
 
         public static void Print(IAppServicePlan resource)
@@ -823,7 +932,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                     .Append("\n\tResource group: ").Append(resource.ResourceGroupName)
                     .Append("\n\tRegion: ").Append(resource.Region)
                     .Append("\n\tPricing tier: ").Append(resource.PricingTier);
-            Console.WriteLine(builder.ToString());
+            Utilities.Log(builder.ToString());
         }
 
         public static void Print(IWebAppBase resource)
@@ -859,7 +968,7 @@ namespace Microsoft.Azure.Management.Samples.Common
             {
                 builder = builder.Append("\n\t\t" + conn.Name + ": " + conn.Value + " - " + conn.Type + (conn.Sticky ? " - slot setting" : ""));
             }
-            Console.WriteLine(builder.ToString());
+            Utilities.Log(builder.ToString());
         }
 
         private static string FormatDictionary(IReadOnlyDictionary<string, string> dictionary)
@@ -892,7 +1001,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                     .Append("\n\tRegion: ").Append(sqlServer.Region)
                     .Append("\n\tSqlServer version: ").Append(sqlServer.Version)
                     .Append("\n\tFully qualified name for Sql Server: ").Append(sqlServer.FullyQualifiedDomainName);
-            Console.WriteLine(builder.ToString());
+            Utilities.Log(builder.ToString());
         }
 
         public static void PrintDatabase(ISqlDatabase database)
@@ -911,7 +1020,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                     .Append("\n\tMax size bytes of SQL database: ").Append(database.MaxSizeBytes)
                     .Append("\n\tDefault secondary location of SQL database: ").Append(database.DefaultSecondaryLocation);
 
-            Console.WriteLine(builder.ToString());
+            Utilities.Log(builder.ToString());
         }
 
         public static void PrintFirewallRule(ISqlFirewallRule firewallRule)
@@ -924,7 +1033,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                     .Append("\n\tStart IP Address of the firewall rule: ").Append(firewallRule.StartIpAddress)
                     .Append("\n\tEnd IP Address of the firewall rule: ").Append(firewallRule.EndIpAddress);
 
-            Console.WriteLine(builder.ToString());
+            Utilities.Log(builder.ToString());
         }
 
         public static void PrintElasticPool(ISqlElasticPool elasticPool)
@@ -942,7 +1051,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                     .Append("\n\tState of the elastic pool: ").Append(elasticPool.State)
                     .Append("\n\tStorage capacity in MBs for the elastic pool: ").Append(elasticPool.StorageMB);
 
-            Console.WriteLine(builder.ToString());
+            Utilities.Log(builder.ToString());
         }
 
         public static void PrintElasticPoolActivity(IElasticPoolActivity elasticPoolActivity)
@@ -963,7 +1072,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                     .Append("\n\tRequested DTU min limit in activity: ").Append(elasticPoolActivity.RequestedDatabaseDtuMin)
                     .Append("\n\tRequested DTU limit in activity: ").Append(elasticPoolActivity.RequestedDtu);
 
-            Console.WriteLine(builder.ToString());
+            Utilities.Log(builder.ToString());
 
         }
 
@@ -983,7 +1092,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                     .Append("\n\tError message of activity: ").Append(databaseActivity.ErrorMessage)
                     .Append("\n\tError severity of activity: ").Append(databaseActivity.ErrorSeverity);
 
-            Console.WriteLine(builder.ToString());
+            Utilities.Log(builder.ToString());
         }
 
         public static void Print(ITrafficManagerProfile profile)
@@ -1060,12 +1169,12 @@ namespace Microsoft.Azure.Management.Samples.Common
                             .Append("\n\t\t\tRouting weight: ").Append(endpoint.RoutingWeight);
                 }
             }
-            Console.WriteLine(builder.ToString());
+            Utilities.Log(builder.ToString());
         }
 
         public static void Print(IDnsZone dnsZone)
         {
-            StringBuilder builder = new StringBuilder();
+            var builder = new StringBuilder();
             builder.Append("Dns Zone: ").Append(dnsZone.Id)
                     .Append("\n\tName (Top level domain): ").Append(dnsZone.Name)
                     .Append("\n\tResource group: ").Append(dnsZone.ResourceGroupName)
@@ -1207,7 +1316,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                     }
                 }
             }
-            Console.WriteLine(builder.ToString());
+            Utilities.Log(builder.ToString());
         }
     }
 }
