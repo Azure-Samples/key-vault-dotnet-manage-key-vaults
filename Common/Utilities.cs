@@ -17,19 +17,35 @@ using System.Text;
 using Microsoft.Azure.Management.Sql.Fluent;
 using Microsoft.Azure.Management.TrafficManager.Fluent;
 using Microsoft.Azure.Management.Dns.Fluent;
-using Microsoft.Azure.Management.Resource.Fluent;
+using Microsoft.Azure.Management.ResourceManager.Fluent;
+using System.Diagnostics;
+using System.IO;
+using Newtonsoft.Json.Linq;
+using System.Net.Http;
+using CoreFtp;
+using Microsoft.WindowsAzure.Storage.Blob;
+using Microsoft.WindowsAzure.Storage;
+using Renci.SshNet;
+using Microsoft.Azure.Management.ServiceBus.Fluent;
+using Microsoft.Azure.ServiceBus;
+using System.Threading;
+using System.Net.Http.Headers;
 
 namespace Microsoft.Azure.Management.Samples.Common
 {
     public static class Utilities
     {
+        public static bool IsRunningMocked { get;set; }
         public static Action<string> LoggerMethod { get; set; }
         public static Func<string> PauseMethod { get; set; }
+
+        public static string ProjectPath { get; set; }
 
         static Utilities()
         {
             LoggerMethod = Console.WriteLine;
             PauseMethod = Console.ReadLine;
+            ProjectPath = ".";
         }
 
         public static void Log(string message)
@@ -73,11 +89,11 @@ namespace Microsoft.Azure.Management.Samples.Common
                     .Append("\n\tSSL policy: ").Append(resource.SslPolicy)
                     .Append("\n\tInternet-facing? ").Append(resource.IsPublic)
                     .Append("\n\tInternal? ").Append(resource.IsPrivate)
-                    .Append("\n\tDefault private IP address: ").Append(resource.PrivateIpAddress)
-                    .Append("\n\tPrivate IP address allocation method: ").Append(resource.PrivateIpAllocationMethod);
+                    .Append("\n\tDefault private IP address: ").Append(resource.PrivateIPAddress)
+                    .Append("\n\tPrivate IP address allocation method: ").Append(resource.PrivateIPAllocationMethod);
 
             // Show IP configs
-            var ipConfigs = resource.IpConfigurations;
+            var ipConfigs = resource.IPConfigurations;
             info.Append("\n\tIP configurations: ").Append(ipConfigs.Count);
             foreach (var ipConfig in ipConfigs.Values)
             {
@@ -97,14 +113,14 @@ namespace Microsoft.Azure.Management.Samples.Common
                 if (frontend.IsPublic)
                 {
                     // Show public frontend info
-                    info.Append("\n\t\t\tPublic IP address ID: ").Append(frontend.PublicIpAddressId);
+                    info.Append("\n\t\t\tPublic IP address ID: ").Append(frontend.PublicIPAddressId);
                 }
 
                 if (frontend.IsPrivate)
                 {
                     // Show private frontend info
-                    info.Append("\n\t\t\tPrivate IP address: ").Append(frontend.PrivateIpAddress)
-                        .Append("\n\t\t\tPrivate IP allocation method: ").Append(frontend.PrivateIpAllocationMethod)
+                    info.Append("\n\t\t\tPrivate IP address: ").Append(frontend.PrivateIPAddress)
+                        .Append("\n\t\t\tPrivate IP allocation method: ").Append(frontend.PrivateIPAllocationMethod)
                         .Append("\n\t\t\tSubnet name: ").Append(frontend.SubnetName)
                         .Append("\n\t\t\tVirtual network ID: ").Append(frontend.NetworkId);
                 }
@@ -116,7 +132,7 @@ namespace Microsoft.Azure.Management.Samples.Common
             foreach (var backend in backends.Values)
             {
                 info.Append("\n\t\tName: ").Append(backend.Name)
-                    .Append("\n\t\t\tAssociated NIC IP configuration IDs: ").Append(string.Join(", ", backend.BackendNicIpConfigurationNames.Keys.ToArray()));
+                    .Append("\n\t\t\tAssociated NIC IP configuration IDs: ").Append(string.Join(", ", backend.BackendNicIPConfigurationNames.Keys.ToArray()));
 
                 // Show addresses
                 var addresses = backend.Addresses;
@@ -174,7 +190,7 @@ namespace Microsoft.Azure.Management.Samples.Common
             {
                 info.Append("\n\t\tName: ").Append(rule.Name)
                     .Append("\n\t\t\tType: ").Append(rule.RuleType.ToString())
-                    .Append("\n\t\t\tPublic IP address ID: ").Append(rule.PublicIpAddressId)
+                    .Append("\n\t\t\tPublic IP address ID: ").Append(rule.PublicIPAddressId)
                     .Append("\n\t\t\tHost name: ").Append(rule.HostName)
                     .Append("\n\t\t\tServer name indication required? ").Append(rule.RequiresServerNameIndication)
                     .Append("\n\t\t\tFrontend port: ").Append(rule.FrontendPort)
@@ -244,6 +260,165 @@ namespace Microsoft.Azure.Management.Samples.Common
             Utilities.Log(info.ToString());
         }
 
+        public static void Print(ITopicAuthorizationRule topicAuthorizationRule)
+        { 
+            StringBuilder builder = new StringBuilder()
+                    .Append("Service bus topic authorization rule: ").Append(topicAuthorizationRule.Id)
+                    .Append("\n\tName: ").Append(topicAuthorizationRule.Name)
+                    .Append("\n\tResourceGroupName: ").Append(topicAuthorizationRule.ResourceGroupName)
+                    .Append("\n\tNamespace Name: ").Append(topicAuthorizationRule.NamespaceName)
+                    .Append("\n\tTopic Name: ").Append(topicAuthorizationRule.TopicName);
+
+            var rights = topicAuthorizationRule.Rights;
+            builder.Append("\n\tNumber of access rights in queue: ").Append(rights.Count);
+            foreach (var right in rights) {
+                builder.Append("\n\t\tAccessRight: ")
+                        .Append("\n\t\t\tName :").Append(right.ToString());
+            }
+
+            Log(builder.ToString());
+        }
+
+        public static void Print(ServiceBus.Fluent.ISubscription serviceBusSubscription)
+        {
+            StringBuilder builder = new StringBuilder()
+                    .Append("Service bus subscription: ").Append(serviceBusSubscription.Id)
+                    .Append("\n\tName: ").Append(serviceBusSubscription.Name)
+                    .Append("\n\tResourceGroupName: ").Append(serviceBusSubscription.ResourceGroupName)
+                    .Append("\n\tCreatedAt: ").Append(serviceBusSubscription.CreatedAt)
+                    .Append("\n\tUpdatedAt: ").Append(serviceBusSubscription.UpdatedAt)
+                    .Append("\n\tAccessedAt: ").Append(serviceBusSubscription.AccessedAt)
+                    .Append("\n\tActiveMessageCount: ").Append(serviceBusSubscription.ActiveMessageCount)
+                    .Append("\n\tDeadLetterMessageCount: ").Append(serviceBusSubscription.DeadLetterMessageCount)
+                    .Append("\n\tDefaultMessageTtlDuration: ").Append(serviceBusSubscription.DefaultMessageTtlDuration)
+                    .Append("\n\tIsBatchedOperationsEnabled: ").Append(serviceBusSubscription.IsBatchedOperationsEnabled)
+                    .Append("\n\tDeleteOnIdleDurationInMinutes: ").Append(serviceBusSubscription.DeleteOnIdleDurationInMinutes)
+                    .Append("\n\tScheduledMessageCount: ").Append(serviceBusSubscription.ScheduledMessageCount)
+                    .Append("\n\tStatus: ").Append(serviceBusSubscription.Status)
+                    .Append("\n\tTransferMessageCount: ").Append(serviceBusSubscription.TransferMessageCount)
+                    .Append("\n\tIsDeadLetteringEnabledForExpiredMessages: ").Append(serviceBusSubscription.IsDeadLetteringEnabledForExpiredMessages)
+                    .Append("\n\tIsSessionEnabled: ").Append(serviceBusSubscription.IsSessionEnabled)
+                    .Append("\n\tLockDurationInSeconds: ").Append(serviceBusSubscription.LockDurationInSeconds)
+                    .Append("\n\tMaxDeliveryCountBeforeDeadLetteringMessage: ").Append(serviceBusSubscription.MaxDeliveryCountBeforeDeadLetteringMessage)
+                    .Append("\n\tIsDeadLetteringEnabledForFilterEvaluationFailedMessages: ").Append(serviceBusSubscription.IsDeadLetteringEnabledForFilterEvaluationFailedMessages)
+                    .Append("\n\tTransferMessageCount: ").Append(serviceBusSubscription.TransferMessageCount)
+                    .Append("\n\tTransferDeadLetterMessageCount: ").Append(serviceBusSubscription.TransferDeadLetterMessageCount);
+
+            Log(builder.ToString());
+        }
+
+        public static void Print(ITopic topic)
+        {
+            StringBuilder builder = new StringBuilder()
+                    .Append("Service bus topic: ").Append(topic.Id)
+                    .Append("\n\tName: ").Append(topic.Name)
+                    .Append("\n\tResourceGroupName: ").Append(topic.ResourceGroupName)
+                    .Append("\n\tCreatedAt: ").Append(topic.CreatedAt)
+                    .Append("\n\tUpdatedAt: ").Append(topic.UpdatedAt)
+                    .Append("\n\tAccessedAt: ").Append(topic.AccessedAt)
+                    .Append("\n\tActiveMessageCount: ").Append(topic.ActiveMessageCount)
+                    .Append("\n\tCurrentSizeInBytes: ").Append(topic.CurrentSizeInBytes)
+                    .Append("\n\tDeadLetterMessageCount: ").Append(topic.DeadLetterMessageCount)
+                    .Append("\n\tDefaultMessageTtlDuration: ").Append(topic.DefaultMessageTtlDuration)
+                    .Append("\n\tDuplicateMessageDetectionHistoryDuration: ").Append(topic.DuplicateMessageDetectionHistoryDuration)
+                    .Append("\n\tIsBatchedOperationsEnabled: ").Append(topic.IsBatchedOperationsEnabled)
+                    .Append("\n\tIsDuplicateDetectionEnabled: ").Append(topic.IsDuplicateDetectionEnabled)
+                    .Append("\n\tIsExpressEnabled: ").Append(topic.IsExpressEnabled)
+                    .Append("\n\tIsPartitioningEnabled: ").Append(topic.IsPartitioningEnabled)
+                    .Append("\n\tDeleteOnIdleDurationInMinutes: ").Append(topic.DeleteOnIdleDurationInMinutes)
+                    .Append("\n\tMaxSizeInMB: ").Append(topic.MaxSizeInMB)
+                    .Append("\n\tScheduledMessageCount: ").Append(topic.ScheduledMessageCount)
+                    .Append("\n\tStatus: ").Append(topic.Status)
+                    .Append("\n\tTransferMessageCount: ").Append(topic.TransferMessageCount)
+                    .Append("\n\tSubscriptionCount: ").Append(topic.SubscriptionCount)
+                    .Append("\n\tTransferDeadLetterMessageCount: ").Append(topic.TransferDeadLetterMessageCount);
+
+            Log(builder.ToString());
+        }
+
+        public static void Print(IAuthorizationKeys keys)
+        {
+            StringBuilder builder = new StringBuilder()
+                    .Append("Authorization keys: ")
+                    .Append("\n\tPrimaryKey: ").Append(keys.PrimaryKey)
+                    .Append("\n\tPrimaryConnectionString: ").Append(keys.PrimaryConnectionString)
+                    .Append("\n\tSecondaryKey: ").Append(keys.SecondaryKey)
+                    .Append("\n\tSecondaryConnectionString: ").Append(keys.SecondaryConnectionString);
+
+            Log(builder.ToString());
+        }
+
+        public static void Print(INamespaceAuthorizationRule namespaceAuthorizationRule)
+        {
+            StringBuilder builder = new StringBuilder()
+                    .Append("Service bus queue authorization rule: ").Append(namespaceAuthorizationRule.Id)
+                    .Append("\n\tName: ").Append(namespaceAuthorizationRule.Name)
+                    .Append("\n\tResourceGroupName: ").Append(namespaceAuthorizationRule.ResourceGroupName)
+                    .Append("\n\tNamespace Name: ").Append(namespaceAuthorizationRule.NamespaceName);
+
+            var rights = namespaceAuthorizationRule.Rights;
+            builder.Append("\n\tNumber of access rights in queue: ").Append(rights.Count());
+            foreach (var right in rights)
+            {
+                builder.Append("\n\t\tAccessRight: ")
+                        .Append("\n\t\t\tName :").Append(right.ToString());
+            }
+
+            Log(builder.ToString());
+        }
+
+        public static void Print(IQueue queue)
+        {
+            StringBuilder builder = new StringBuilder()
+                    .Append("Service bus Queue: ").Append(queue.Id)
+                    .Append("\n\tName: ").Append(queue.Name)
+                    .Append("\n\tResourceGroupName: ").Append(queue.ResourceGroupName)
+                    .Append("\n\tCreatedAt: ").Append(queue.CreatedAt)
+                    .Append("\n\tUpdatedAt: ").Append(queue.UpdatedAt)
+                    .Append("\n\tAccessedAt: ").Append(queue.AccessedAt)
+                    .Append("\n\tActiveMessageCount: ").Append(queue.ActiveMessageCount)
+                    .Append("\n\tCurrentSizeInBytes: ").Append(queue.CurrentSizeInBytes)
+                    .Append("\n\tDeadLetterMessageCount: ").Append(queue.DeadLetterMessageCount)
+                    .Append("\n\tDefaultMessageTtlDuration: ").Append(queue.DefaultMessageTtlDuration)
+                    .Append("\n\tDuplicateMessageDetectionHistoryDuration: ").Append(queue.DuplicateMessageDetectionHistoryDuration)
+                    .Append("\n\tIsBatchedOperationsEnabled: ").Append(queue.IsBatchedOperationsEnabled)
+                    .Append("\n\tIsDeadLetteringEnabledForExpiredMessages: ").Append(queue.IsDeadLetteringEnabledForExpiredMessages)
+                    .Append("\n\tIsDuplicateDetectionEnabled: ").Append(queue.IsDuplicateDetectionEnabled)
+                    .Append("\n\tIsExpressEnabled: ").Append(queue.IsExpressEnabled)
+                    .Append("\n\tIsPartitioningEnabled: ").Append(queue.IsPartitioningEnabled)
+                    .Append("\n\tIsSessionEnabled: ").Append(queue.IsSessionEnabled)
+                    .Append("\n\tDeleteOnIdleDurationInMinutes: ").Append(queue.DeleteOnIdleDurationInMinutes)
+                    .Append("\n\tMaxDeliveryCountBeforeDeadLetteringMessage: ").Append(queue.MaxDeliveryCountBeforeDeadLetteringMessage)
+                    .Append("\n\tMaxSizeInMB: ").Append(queue.MaxSizeInMB)
+                    .Append("\n\tMessageCount: ").Append(queue.MessageCount)
+                    .Append("\n\tScheduledMessageCount: ").Append(queue.ScheduledMessageCount)
+                    .Append("\n\tStatus: ").Append(queue.Status)
+                    .Append("\n\tTransferMessageCount: ").Append(queue.TransferMessageCount)
+                    .Append("\n\tLockDurationInSeconds: ").Append(queue.LockDurationInSeconds)
+                    .Append("\n\tTransferDeadLetterMessageCount: ").Append(queue.TransferDeadLetterMessageCount);
+
+            Utilities.Log(builder.ToString());
+        }
+
+        public static void Print(IServiceBusNamespace serviceBusNamespace)
+        {
+            var builder = new StringBuilder()
+                    .Append("Service bus Namespace: ").Append(serviceBusNamespace.Id)
+                    .Append("\n\tName: ").Append(serviceBusNamespace.Name)
+                    .Append("\n\tRegion: ").Append(serviceBusNamespace.RegionName)
+                    .Append("\n\tResourceGroupName: ").Append(serviceBusNamespace.ResourceGroupName)
+                    .Append("\n\tCreatedAt: ").Append(serviceBusNamespace.CreatedAt)
+                    .Append("\n\tUpdatedAt: ").Append(serviceBusNamespace.UpdatedAt)
+                    .Append("\n\tDnsLabel: ").Append(serviceBusNamespace.DnsLabel)
+                    .Append("\n\tFQDN: ").Append(serviceBusNamespace.Fqdn)
+                    .Append("\n\tSku: ")
+                    .Append("\n\t\tCapacity: ").Append(serviceBusNamespace.Sku.Capacity)
+                    .Append("\n\t\tSkuName: ").Append(serviceBusNamespace.Sku.Name)
+                    .Append("\n\t\tTier: ").Append(serviceBusNamespace.Sku.Tier);
+
+            Utilities.Log(builder.ToString());
+        }
+
         public static void PrintVirtualMachineCustomImage(IVirtualMachineCustomImage image)
         {
             var builder = new StringBuilder().Append("Virtual machine custom image: ").Append(image.Id)
@@ -252,25 +427,25 @@ namespace Microsoft.Azure.Management.Samples.Common
             .Append("\n\tCreated from virtual machine: ").Append(image.SourceVirtualMachineId);
 
             builder.Append("\n\tOS disk image: ")
-                    .Append("\n\t\tOperating system: ").Append(image.OsDiskImage.OsType)
-                    .Append("\n\t\tOperating system state: ").Append(image.OsDiskImage.OsState)
-                    .Append("\n\t\tCaching: ").Append(image.OsDiskImage.Caching)
-                    .Append("\n\t\tSize (GB): ").Append(image.OsDiskImage.DiskSizeGB);
+                    .Append("\n\t\tOperating system: ").Append(image.OSDiskImage.OsType)
+                    .Append("\n\t\tOperating system state: ").Append(image.OSDiskImage.OsState)
+                    .Append("\n\t\tCaching: ").Append(image.OSDiskImage.Caching)
+                    .Append("\n\t\tSize (GB): ").Append(image.OSDiskImage.DiskSizeGB);
             if (image.IsCreatedFromVirtualMachine)
             {
                 builder.Append("\n\t\tSource virtual machine: ").Append(image.SourceVirtualMachineId);
             }
-            if (image.OsDiskImage.ManagedDisk != null)
+            if (image.OSDiskImage.ManagedDisk != null)
             {
-                builder.Append("\n\t\tSource managed disk: ").Append(image.OsDiskImage.ManagedDisk.Id);
+                builder.Append("\n\t\tSource managed disk: ").Append(image.OSDiskImage.ManagedDisk.Id);
             }
-            if (image.OsDiskImage.Snapshot != null)
+            if (image.OSDiskImage.Snapshot != null)
             {
-                builder.Append("\n\t\tSource snapshot: ").Append(image.OsDiskImage.Snapshot.Id);
+                builder.Append("\n\t\tSource snapshot: ").Append(image.OSDiskImage.Snapshot.Id);
             }
-            if (image.OsDiskImage.BlobUri != null)
+            if (image.OSDiskImage.BlobUri != null)
             {
-                builder.Append("\n\t\tSource un-managed vhd: ").Append(image.OsDiskImage.BlobUri);
+                builder.Append("\n\t\tSource un-managed vhd: ").Append(image.OSDiskImage.BlobUri);
             }
             if (image.DataDiskImages != null)
             {
@@ -377,26 +552,26 @@ namespace Microsoft.Azure.Management.Samples.Common
                 }
             }
             StringBuilder osProfile;
-            if (virtualMachine.OsProfile != null)
+            if (virtualMachine.OSProfile != null)
             {
                 osProfile = new StringBuilder().Append("\n\tOSProfile: ");
 
-                osProfile.Append("\n\t\tComputerName:").Append(virtualMachine.OsProfile.ComputerName);
-                if (virtualMachine.OsProfile.WindowsConfiguration != null)
+                osProfile.Append("\n\t\tComputerName:").Append(virtualMachine.OSProfile.ComputerName);
+                if (virtualMachine.OSProfile.WindowsConfiguration != null)
                 {
                     osProfile.Append("\n\t\t\tWindowsConfiguration: ");
                     osProfile.Append("\n\t\t\t\tProvisionVMAgent: ")
-                            .Append(virtualMachine.OsProfile.WindowsConfiguration.ProvisionVMAgent);
+                            .Append(virtualMachine.OSProfile.WindowsConfiguration.ProvisionVMAgent);
                     osProfile.Append("\n\t\t\t\tEnableAutomaticUpdates: ")
-                            .Append(virtualMachine.OsProfile.WindowsConfiguration.EnableAutomaticUpdates);
+                            .Append(virtualMachine.OSProfile.WindowsConfiguration.EnableAutomaticUpdates);
                     osProfile.Append("\n\t\t\t\tTimeZone: ")
-                            .Append(virtualMachine.OsProfile.WindowsConfiguration.TimeZone);
+                            .Append(virtualMachine.OSProfile.WindowsConfiguration.TimeZone);
                 }
-                if (virtualMachine.OsProfile.LinuxConfiguration != null)
+                if (virtualMachine.OSProfile.LinuxConfiguration != null)
                 {
                     osProfile.Append("\n\t\t\tLinuxConfiguration: ");
                     osProfile.Append("\n\t\t\t\tDisablePasswordAuthentication: ")
-                            .Append(virtualMachine.OsProfile.LinuxConfiguration.DisablePasswordAuthentication);
+                            .Append(virtualMachine.OSProfile.LinuxConfiguration.DisablePasswordAuthentication);
                 }
             }
             else
@@ -424,7 +599,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                     .ToString());
         }
 
-        public static void PrintStorageAccountKeys(IList<StorageAccountKey> storageAccountKeys)
+        public static void PrintStorageAccountKeys(IReadOnlyList<StorageAccountKey> storageAccountKeys)
         {
             foreach (var storageAccountKey in storageAccountKeys)
             {
@@ -537,7 +712,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                     .Append("\n\tRegion: ").Append(network.Region)
                     .Append("\n\tTags: ").Append(FormatDictionary(network.Tags))
                     .Append("\n\tAddress spaces: ").Append(FormatCollection(network.AddressSpaces))
-                    .Append("\n\tDNS server IPs: ").Append(FormatCollection(network.DnsServerIps));
+                    .Append("\n\tDNS server IPs: ").Append(FormatCollection(network.DnsServerIPs));
 
             // Output subnets
             foreach (var subnet in network.Subnets.Values)
@@ -554,19 +729,19 @@ namespace Microsoft.Azure.Management.Samples.Common
             Utilities.Log(info.ToString());
         }
 
-        public static void PrintIpAddress(IPublicIpAddress publicIpAddress)
+        public static void PrintIPAddress(IPublicIPAddress publicIPAddress)
         {
-            Utilities.Log(new StringBuilder().Append("Public IP Address: ").Append(publicIpAddress.Id)
-                .Append("Name: ").Append(publicIpAddress.Name)
-                .Append("\n\tResource group: ").Append(publicIpAddress.ResourceGroupName)
-                .Append("\n\tRegion: ").Append(publicIpAddress.Region)
-                .Append("\n\tTags: ").Append(FormatDictionary(publicIpAddress.Tags))
-                .Append("\n\tIP Address: ").Append(publicIpAddress.IpAddress)
-                .Append("\n\tLeaf domain label: ").Append(publicIpAddress.LeafDomainLabel)
-                .Append("\n\tFQDN: ").Append(publicIpAddress.Fqdn)
-                .Append("\n\tReverse FQDN: ").Append(publicIpAddress.ReverseFqdn)
-                .Append("\n\tIdle timeout (minutes): ").Append(publicIpAddress.IdleTimeoutInMinutes)
-                .Append("\n\tIP allocation method: ").Append(publicIpAddress.IpAllocationMethod)
+            Utilities.Log(new StringBuilder().Append("Public IP Address: ").Append(publicIPAddress.Id)
+                .Append("Name: ").Append(publicIPAddress.Name)
+                .Append("\n\tResource group: ").Append(publicIPAddress.ResourceGroupName)
+                .Append("\n\tRegion: ").Append(publicIPAddress.Region)
+                .Append("\n\tTags: ").Append(FormatDictionary(publicIPAddress.Tags))
+                .Append("\n\tIP Address: ").Append(publicIPAddress.IPAddress)
+                .Append("\n\tLeaf domain label: ").Append(publicIPAddress.LeafDomainLabel)
+                .Append("\n\tFQDN: ").Append(publicIPAddress.Fqdn)
+                .Append("\n\tReverse FQDN: ").Append(publicIPAddress.ReverseFqdn)
+                .Append("\n\tIdle timeout (minutes): ").Append(publicIPAddress.IdleTimeoutInMinutes)
+                .Append("\n\tIP allocation method: ").Append(publicIPAddress.IPAllocationMethod)
                 .ToString());
         }
 
@@ -591,12 +766,12 @@ namespace Microsoft.Azure.Management.Samples.Common
                 info.Append("\n\t\t").Append(dnsServerIp);
             }
 
-            info.Append("\n\t IP forwarding enabled: ").Append(resource.IsIpForwardingEnabled)
+            info.Append("\n\t IP forwarding enabled: ").Append(resource.IsIPForwardingEnabled)
                     .Append("\n\tMAC Address:").Append(resource.MacAddress)
-                    .Append("\n\tPrivate IP:").Append(resource.PrimaryPrivateIp)
-                    .Append("\n\tPrivate allocation method:").Append(resource.PrimaryPrivateIpAllocationMethod)
-                    .Append("\n\tPrimary virtual network ID: ").Append(resource.PrimaryIpConfiguration.NetworkId)
-                    .Append("\n\tPrimary subnet name:").Append(resource.PrimaryIpConfiguration.SubnetName);
+                    .Append("\n\tPrivate IP:").Append(resource.PrimaryPrivateIP)
+                    .Append("\n\tPrivate allocation method:").Append(resource.PrimaryPrivateIPAllocationMethod)
+                    .Append("\n\tPrimary virtual network ID: ").Append(resource.PrimaryIPConfiguration.NetworkId)
+                    .Append("\n\tPrimary subnet name:").Append(resource.PrimaryIPConfiguration.SubnetName);
 
             Utilities.Log(info.ToString());
         }
@@ -613,8 +788,8 @@ namespace Microsoft.Azure.Management.Samples.Common
 
             // Show public IP addresses
             info.Append("\n\tPublic IP address IDs: ")
-                    .Append(loadBalancer.PublicIpAddressIds.Count);
-            foreach (var pipId in loadBalancer.PublicIpAddressIds)
+                    .Append(loadBalancer.PublicIPAddressIds.Count);
+            foreach (var pipId in loadBalancer.PublicIPAddressIds)
             {
                 info.Append("\n\t\tPIP id: ").Append(pipId);
             }
@@ -665,7 +840,7 @@ namespace Microsoft.Azure.Management.Samples.Common
             {
                 info.Append("\n\t\tLB rule name: ").Append(rule.Name)
                         .Append("\n\t\t\tProtocol: ").Append(rule.Protocol)
-                        .Append("\n\t\t\tFloating IP enabled? ").Append(rule.FloatingIpEnabled)
+                        .Append("\n\t\t\tFloating IP enabled? ").Append(rule.FloatingIPEnabled)
                         .Append("\n\t\t\tIdle timeout in minutes: ").Append(rule.IdleTimeoutInMinutes)
                         .Append("\n\t\t\tLoad distribution method: ").Append(rule.LoadDistribution);
 
@@ -716,14 +891,14 @@ namespace Microsoft.Azure.Management.Samples.Common
                         .Append("\n\t\t\tInternet facing: ").Append(frontend.IsPublic);
                 if (frontend.IsPublic)
                 {
-                    info.Append("\n\t\t\tPublic IP Address ID: ").Append(((ILoadBalancerPublicFrontend)frontend).PublicIpAddressId);
+                    info.Append("\n\t\t\tPublic IP Address ID: ").Append(((ILoadBalancerPublicFrontend)frontend).PublicIPAddressId);
                 }
                 else
                 {
                     info.Append("\n\t\t\tVirtual network ID: ").Append(((ILoadBalancerPrivateFrontend)frontend).NetworkId)
                             .Append("\n\t\t\tSubnet name: ").Append(((ILoadBalancerPrivateFrontend)frontend).SubnetName)
-                            .Append("\n\t\t\tPrivate IP address: ").Append(((ILoadBalancerPrivateFrontend)frontend).PrivateIpAddress)
-                            .Append("\n\t\t\tPrivate IP allocation method: ").Append(((ILoadBalancerPrivateFrontend)frontend).PrivateIpAllocationMethod);
+                            .Append("\n\t\t\tPrivate IP address: ").Append(((ILoadBalancerPrivateFrontend)frontend).PrivateIPAddress)
+                            .Append("\n\t\t\tPrivate IP allocation method: ").Append(((ILoadBalancerPrivateFrontend)frontend).PrivateIPAllocationMethod);
                 }
 
                 // Inbound NAT pool references
@@ -762,8 +937,8 @@ namespace Microsoft.Azure.Management.Samples.Common
                         .Append("\n\t\t\tFrontend port: ").Append(natRule.FrontendPort)
                         .Append("\n\t\t\tBackend port: ").Append(natRule.BackendPort)
                         .Append("\n\t\t\tBackend NIC ID: ").Append(natRule.BackendNetworkInterfaceId)
-                        .Append("\n\t\t\tBackend NIC IP config name: ").Append(natRule.BackendNicIpConfigurationName)
-                        .Append("\n\t\t\tFloating IP? ").Append(natRule.FloatingIpEnabled)
+                        .Append("\n\t\t\tBackend NIC IP config name: ").Append(natRule.BackendNicIPConfigurationName)
+                        .Append("\n\t\t\tFloating IP? ").Append(natRule.FloatingIPEnabled)
                         .Append("\n\t\t\tIdle timeout in minutes: ").Append(natRule.IdleTimeoutInMinutes);
             }
 
@@ -791,8 +966,8 @@ namespace Microsoft.Azure.Management.Samples.Common
 
                 // Show assigned backend NICs
                 info.Append("\n\t\t\tReferenced NICs: ")
-                        .Append(backend.BackendNicIpConfigurationNames.Count);
-                foreach (var entry in backend.BackendNicIpConfigurationNames)
+                        .Append(backend.BackendNicIPConfigurationNames.Count);
+                foreach (var entry in backend.BackendNicIPConfigurationNames)
                 {
                     info.Append("\n\t\t\t\tNIC ID: ").Append(entry.Key)
                             .Append(" - IP Config: ").Append(entry.Value);
@@ -1030,8 +1205,8 @@ namespace Microsoft.Azure.Management.Samples.Common
                     .Append("\n\tResource group: ").Append(firewallRule.ResourceGroupName)
                     .Append("\n\tRegion: ").Append(firewallRule.Region)
                     .Append("\n\tSqlServer Name: ").Append(firewallRule.SqlServerName)
-                    .Append("\n\tStart IP Address of the firewall rule: ").Append(firewallRule.StartIpAddress)
-                    .Append("\n\tEnd IP Address of the firewall rule: ").Append(firewallRule.EndIpAddress);
+                    .Append("\n\tStart IP Address of the firewall rule: ").Append(firewallRule.StartIPAddress)
+                    .Append("\n\tEnd IP Address of the firewall rule: ").Append(firewallRule.EndIPAddress);
 
             Utilities.Log(builder.ToString());
         }
@@ -1204,7 +1379,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                         .Append("\n\t\tName: ").Append(aRecordSet.Name)
                         .Append("\n\t\tTtl (seconds): ").Append(aRecordSet.TimeToLive)
                         .Append("\n\t\tIp v4 addresses: ");
-                foreach (var ipAddress in aRecordSet.Ipv4Addresses)
+                foreach (var ipAddress in aRecordSet.IPv4Addresses)
                 {
                     builder.Append("\n\t\t\t").Append(ipAddress);
                 }
@@ -1218,13 +1393,13 @@ namespace Microsoft.Azure.Management.Samples.Common
                         .Append("\n\t\tName: ").Append(aaaaRecordSet.Name)
                         .Append("\n\t\tTtl (seconds): ").Append(aaaaRecordSet.TimeToLive)
                         .Append("\n\t\tIp v6 addresses: ");
-                foreach (var ipAddress in aaaaRecordSet.Ipv6Addresses)
+                foreach (var ipAddress in aaaaRecordSet.IPv6Addresses)
                 {
                     builder.Append("\n\t\t\t").Append(ipAddress);
                 }
             }
 
-            var cnameRecordSets = dnsZone.CnameRecordSets.List();
+            var cnameRecordSets = dnsZone.CNameRecordSets.List();
             builder.Append("\n\tCNAME Record sets:");
             foreach (var cnameRecordSet in cnameRecordSets)
             {
@@ -1234,7 +1409,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                         .Append("\n\t\tCanonical name: ").Append(cnameRecordSet.CanonicalName);
             }
 
-            var mxRecordSets = dnsZone.MxRecordSets.List();
+            var mxRecordSets = dnsZone.MXRecordSets.List();
             builder.Append("\n\tMX Record sets:");
             foreach (var mxRecordSet in mxRecordSets)
             {
@@ -1251,7 +1426,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                 }
             }
 
-            var nsRecordSets = dnsZone.NsRecordSets.List();
+            var nsRecordSets = dnsZone.NSRecordSets.List();
             builder.Append("\n\tNS Record sets:");
             foreach (var nsRecordSet in nsRecordSets)
             {
@@ -1317,6 +1492,329 @@ namespace Microsoft.Azure.Management.Samples.Common
                 }
             }
             Utilities.Log(builder.ToString());
+        }
+
+        public static void CreateCertificate(string domainName, string pfxPath, string password)
+        {
+            if (!IsRunningMocked)
+            {
+                string args = string.Format(
+                    @".\createCert.ps1 -pfxFileName {0} -pfxPassword ""{1}"" -domainName ""{2}""",
+                    pfxPath,
+                    password,
+                    domainName);
+                ProcessStartInfo info = new ProcessStartInfo("powershell", args);
+                string assetPath = Path.Combine(ProjectPath, "Asset");
+                info.WorkingDirectory = assetPath;
+                Process.Start(info).WaitForExit();
+            }
+            else
+            {
+                File.Copy(
+                    Path.Combine(Utilities.ProjectPath, "Asset", "SampleTestCertificate.pfx"),
+                    Path.Combine(Utilities.ProjectPath, "Asset", pfxPath),
+                    overwrite: true);
+            }
+        }
+
+        public static void UploadFileToFtp(IPublishingProfile profile, string filePath, string fileName = null)
+        {
+            if (!IsRunningMocked)
+            {
+                string host = profile.FtpUrl.Split(new char[] { '/' }, 2)[0];
+
+                using (var ftpClient = new FtpClient(new FtpClientConfiguration
+                {
+                    Host = host,
+                    Username = profile.FtpUsername,
+                    Password = profile.FtpPassword
+                }))
+                {
+                    var fileinfo = new FileInfo(filePath);
+                    ftpClient.LoginAsync().GetAwaiter().GetResult();
+                    if (!ftpClient.ListDirectoriesAsync().GetAwaiter().GetResult().Any(fni => fni.Name == "site"))
+                    {
+                        ftpClient.CreateDirectoryAsync("site").GetAwaiter().GetResult();
+                    }
+                    ftpClient.ChangeWorkingDirectoryAsync("./site").GetAwaiter().GetResult();
+                    if (!ftpClient.ListDirectoriesAsync().GetAwaiter().GetResult().Any(fni => fni.Name == "wwwroot"))
+                    {
+                        ftpClient.CreateDirectoryAsync("wwwroot").GetAwaiter().GetResult();
+                    }
+                    ftpClient.ChangeWorkingDirectoryAsync("./wwwroot").GetAwaiter().GetResult();
+                    if (!ftpClient.ListDirectoriesAsync().GetAwaiter().GetResult().Any(fni => fni.Name == "webapps"))
+                    {
+                        ftpClient.CreateDirectoryAsync("webapps").GetAwaiter().GetResult();
+                    }
+                    ftpClient.ChangeWorkingDirectoryAsync("./webapps").GetAwaiter().GetResult();
+
+                    if (fileName == null)
+                    {
+                        fileName = Path.GetFileName(filePath);
+                    }
+                    while (fileName.Contains("/"))
+                    {
+                        int slash = fileName.IndexOf("/");
+                        string subDir = fileName.Substring(0, slash);
+                        ftpClient.CreateDirectoryAsync(subDir).GetAwaiter().GetResult();
+                        ftpClient.ChangeWorkingDirectoryAsync("./" + subDir);
+                        fileName = fileName.Substring(slash + 1);
+                    }
+
+                    using (var writeStream = ftpClient.OpenFileWriteStreamAsync(fileName).GetAwaiter().GetResult())
+                    {
+                        var fileReadStream = fileinfo.OpenRead();
+                        fileReadStream.CopyToAsync(writeStream).GetAwaiter().GetResult();
+                    }
+                }
+            }
+        }
+
+        public static void UploadFilesToContainer(string connectionString, string containerName, params string [] filePaths)
+        {
+            if (!IsRunningMocked)
+            {
+                CloudStorageAccount storageAccount;
+
+                try
+                {
+                    storageAccount = CloudStorageAccount.Parse(connectionString);
+                }
+                catch (FormatException)
+                {
+                    Utilities.Log("Invalid storage account information provided. Please confirm the AccountName and AccountKey are valid in the app.config file - then restart the sample.");
+                    Utilities.ReadLine();
+                    throw;
+                }
+                catch (ArgumentException)
+                {
+                    Utilities.Log("Invalid storage account information provided. Please confirm the AccountName and AccountKey are valid in the app.config file - then restart the sample.");
+                    Utilities.ReadLine();
+                    throw;
+                }
+
+                // Create a blob client for interacting with the blob service.
+                var blobClient = storageAccount.CreateCloudBlobClient();
+
+                // Create a container for organizing blobs within the storage account.
+                Utilities.Log("1. Creating Container");
+                var container = blobClient.GetContainerReference(containerName);
+                container.CreateIfNotExistsAsync().GetAwaiter().GetResult();
+
+                var containerPermissions = new BlobContainerPermissions();
+                // Include public access in the permissions object
+                containerPermissions.PublicAccess = BlobContainerPublicAccessType.Container;
+                // Set the permissions on the container
+                container.SetPermissionsAsync(containerPermissions).GetAwaiter().GetResult();
+
+                foreach (var filePath in filePaths)
+                {
+                    var blob = container.GetBlockBlobReference(Path.GetFileName(filePath));
+                    blob.UploadFromFileAsync(filePath).GetAwaiter().GetResult();
+                }
+            }
+        }
+
+        public static void DeployByGit(IPublishingProfile profile, string repository)
+        {
+            if (!IsRunningMocked)
+            {
+                string gitCommand = "git";
+                string gitInitArgument = @"init";
+                string gitAddArgument = @"add -A";
+                string gitCommitArgument = @"commit -am ""Initial commit"" ";
+                string gitPushArgument = $"push https://{profile.GitUsername}:{profile.GitPassword}@{profile.GitUrl} master:master -f";
+
+                ProcessStartInfo info = new ProcessStartInfo(gitCommand, gitInitArgument);
+                info.WorkingDirectory = Path.Combine(ProjectPath, "Asset", repository);
+                Process.Start(info).WaitForExit();
+                info.Arguments = gitAddArgument;
+                Process.Start(info).WaitForExit();
+                info.Arguments = gitCommitArgument;
+                Process.Start(info).WaitForExit();
+                info.Arguments = gitPushArgument;
+                Process.Start(info).WaitForExit();
+            }
+        }
+        
+        public static string CheckAddress(string url, IDictionary<string, string> headers = null)
+        {
+            if (!IsRunningMocked)
+            {
+                try
+                {
+                    using (var client = new HttpClient())
+                    {
+                        if (headers != null)
+                        {
+                            foreach (var header in headers)
+                            {
+                                client.DefaultRequestHeaders.Add(header.Key, header.Value);
+                            }
+                        }
+                        return client.GetAsync(url).Result.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                    }
+                }
+                catch(Exception ex)
+                {
+                    Utilities.Log(ex);
+                }
+            }
+
+            return "[Running in PlaybackMode]";
+        }
+
+        public static string PostAddress(string url, string body, IDictionary<string, string> headers = null) 
+        {
+            if (!IsRunningMocked)
+            {
+                try
+                {
+                    using (var client = new HttpClient())
+                    {
+                        if (headers != null)
+                        {
+                            foreach (var header in headers)
+                            {
+                                client.DefaultRequestHeaders.Add(header.Key, header.Value);
+                            }
+                        }
+                        return client.PostAsync(url, new StringContent(body)).Result.ToString();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Utilities.Log(ex);
+                }
+            }
+
+            return "[Running in PlaybackMode]";
+        }
+
+        public static void DeprovisionAgentInLinuxVM(string host, int port, string userName, string password)
+        {
+            if (!IsRunningMocked)
+            {                
+                Console.WriteLine("Trying to de-provision: " + host);
+                Console.WriteLine("ssh connection status: " + TrySsh(
+                    host,
+                    port,
+                    userName,
+                    password,
+                    "sudo waagent -deprovision+user --force"));
+            }
+        }
+
+        public static string GetArmTemplate(string templateFileName)
+        {
+            var adminUsername = "tirekicker";
+            var adminPassword = "12NewPA$$w0rd!";
+            var hostingPlanName = SdkContext.RandomResourceName("hpRSAT", 24);
+            var webAppName = SdkContext.RandomResourceName("wnRSAT", 24);
+            var armTemplateString = File.ReadAllText(Path.Combine(Utilities.ProjectPath, "Asset", templateFileName));
+
+            var parsedTemplate = JObject.Parse(armTemplateString);
+
+            if (String.Equals("ArmTemplate.json", templateFileName, StringComparison.OrdinalIgnoreCase))
+            {
+                parsedTemplate.SelectToken("parameters.hostingPlanName")["defaultValue"] = hostingPlanName;
+                parsedTemplate.SelectToken("parameters.webSiteName")["defaultValue"] = webAppName;
+                parsedTemplate.SelectToken("parameters.skuName")["defaultValue"] = "F1";
+                parsedTemplate.SelectToken("parameters.skuCapacity")["defaultValue"] = 1;
+            }
+            else if (String.Equals("ArmTemplateVM.json", templateFileName, StringComparison.OrdinalIgnoreCase))
+            {
+                parsedTemplate.SelectToken("parameters.adminUsername")["defaultValue"] = adminUsername;
+                parsedTemplate.SelectToken("parameters.adminPassword")["defaultValue"] = adminPassword;
+            }
+            return parsedTemplate.ToString();
+        }
+
+        public static string GetCertificatePath(string certificateName)
+        {
+            return Path.Combine(Utilities.ProjectPath, "Asset", certificateName);
+        }
+
+        public static void SendMessageToTopic(string connectionString, string topicName, string message)
+        {
+            if (!IsRunningMocked)
+            {
+                try
+                {
+                    var topicClient = new TopicClient(connectionString, topicName);
+                    topicClient.SendAsync(new Message(Encoding.UTF8.GetBytes(message))).Wait();
+                    topicClient.Close();
+                }
+                catch (Exception)
+                {
+                }
+            }
+        }
+
+        public static void SendMessageToQueue(string connectionString, string queueName, string message)
+        {
+            if (!IsRunningMocked)
+            {
+                try
+                {
+                    var queueClient = new QueueClient(connectionString, queueName, ReceiveMode.PeekLock);
+                    queueClient.SendAsync(new Message(Encoding.UTF8.GetBytes(message))).Wait();
+                    queueClient.Close();
+                }
+                catch (Exception)
+                {
+                }
+            }
+        }
+
+        private static string TrySsh(
+            string host,
+            int port,
+            string userName,
+            string password,
+            string commandToExecute)
+        {
+            string commandOutput = null;
+            var backoffTime = 30 * 1000;
+            var retryCount = 3;
+
+            while (retryCount > 0)
+            {
+                using (var sshClient = new SshClient(host, port, userName, password))
+                {
+                    try
+                    {
+                        sshClient.Connect();
+                        if (commandToExecute != null)
+                        {
+                            using (var command = sshClient.CreateCommand(commandToExecute))
+                            {
+                                commandOutput = command.Execute();
+                            }
+                        }
+                        break;
+                    }
+                    catch (Exception exception)
+                    {
+                        retryCount--;
+                        if (retryCount == 0)
+                        {
+                            throw exception;
+                        }
+                    }
+                    finally
+                    {
+                        try
+                        {
+                            sshClient.Disconnect();
+                        }
+                        catch { }
+                    }
+                }
+                Thread.Sleep(backoffTime);
+            }
+
+            return commandOutput;
         }
     }
 }

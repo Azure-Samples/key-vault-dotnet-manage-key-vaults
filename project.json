@@ -4,7 +4,11 @@
     "emitEntryPoint": true
   },
   "dependencies": {
-    "Microsoft.Azure.Management.Fluent": "1.0.0-beta50",
+    "Microsoft.Azure.Management.Fluent": "1.0.0",
+    "Microsoft.Azure.ServiceBus": "0.0.2-preview",
+    "CoreFTP": "1.2.0",
+    "SSH.NET": "2016.0.0",
+    "WindowsAzure.Storage": "8.0.1",
     "Microsoft.NETCore.App": {
       "type": "platform",
       "version": "1.0.0"
@@ -12,7 +16,10 @@
   },
   "frameworks": {
     "netcoreapp1.0": {
-      "imports": "dnxcore50"
+      "imports": [
+        "dnxcore50",
+        "portable-net451+win8"
+      ]
     }
   }
 }
