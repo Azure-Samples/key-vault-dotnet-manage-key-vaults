@@ -28,15 +28,18 @@ using CoreFtp;
 using Microsoft.WindowsAzure.Storage.Blob;
 using Microsoft.WindowsAzure.Storage;
 using Renci.SshNet;
+using Microsoft.Azure.Management.Search.Fluent;
+using Microsoft.Azure.Management.Search.Fluent.Models;
 using Microsoft.Azure.Management.ServiceBus.Fluent;
 using Microsoft.Azure.ServiceBus;
 using System.Threading;
 using System.Net.Http.Headers;
-using Microsoft.Azure.Management.DocumentDB.Fluent;
-using Microsoft.Azure.Management.DocumentDB.Fluent.Models;
+using Microsoft.Azure.Management.CosmosDB.Fluent;
+using Microsoft.Azure.Management.CosmosDB.Fluent.Models;
 using Microsoft.Azure.Management.Compute.Fluent.Models;
 using Microsoft.Azure.Management.Graph.RBAC.Fluent;
 using Microsoft.Azure.Management.Graph.RBAC.Fluent.Models;
+using Microsoft.Azure.Management.Network.Fluent.Models;
 
 namespace Microsoft.Azure.Management.Samples.Common
 {
@@ -301,6 +304,34 @@ namespace Microsoft.Azure.Management.Samples.Common
             {
                 builder.Append("\n\t\tAccessRight: ")
                         .Append("\n\t\t\tName :").Append(right.ToString());
+            }
+
+            Log(builder.ToString());
+        }
+
+        public static void Print(Search.Fluent.ISearchService searchService)
+        {
+            var adminKeys = searchService.GetAdminKeys();
+            var queryKeys = searchService.ListQueryKeys();
+
+            StringBuilder builder = new StringBuilder()
+                    .Append("Service bus subscription: ").Append(searchService.Id)
+                    .Append("\n\tResource group: ").Append(searchService.ResourceGroupName)
+                    .Append("\n\tRegion: ").Append(searchService.Region)
+                    .Append("\n\tSku: ").Append(searchService.Sku.Name)
+                    .Append("\n\tStatus: ").Append(searchService.Status)
+                    .Append("\n\tProvisioning State: ").Append(searchService.ProvisioningState)
+                    .Append("\n\tHosting Mode: ").Append(searchService.HostingMode)
+                    .Append("\n\tReplicas: ").Append(searchService.ReplicaCount)
+                    .Append("\n\tPartitions: ").Append(searchService.PartitionCount)
+                    .Append("\n\tPrimary Admin Key: ").Append(adminKeys.PrimaryKey)
+                    .Append("\n\tSecondary Admin Key: ").Append(adminKeys.SecondaryKey)
+                    .Append("\n\tQuery keys:");
+
+            foreach (IQueryKey queryKey in queryKeys)
+            {
+                builder.Append("\n\t\tKey name: ").Append(queryKey.Name);
+                builder.Append("\n\t\t   Value: ").Append(queryKey.Key);
             }
 
             Log(builder.ToString());
@@ -613,6 +644,11 @@ namespace Microsoft.Azure.Management.Samples.Common
                 networkProfile.Append("\n\t\tId:").Append(networkInterfaceId);
             }
 
+            var msi = new StringBuilder().Append("\n\tMSI: ");
+            msi.Append("\n\t\tMSI enabled:").Append(virtualMachine.IsManagedServiceIdentityEnabled);
+            msi.Append("\n\t\tMSI Active Directory Service Principal Id:").Append(virtualMachine.ManagedServiceIdentityPrincipalId);
+            msi.Append("\n\t\tMSI Active Directory Tenant Id:").Append(virtualMachine.ManagedServiceIdentityTenantId);
+
             Utilities.Log(new StringBuilder().Append("Virtual Machine: ").Append(virtualMachine.Id)
                     .Append("Name: ").Append(virtualMachine.Name)
                     .Append("\n\tResource group: ").Append(virtualMachine.ResourceGroupName)
@@ -623,6 +659,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                     .Append(storageProfile)
                     .Append(osProfile)
                     .Append(networkProfile)
+                    .Append(msi)
                     .ToString());
         }
 
@@ -794,6 +831,7 @@ namespace Microsoft.Azure.Management.Samples.Common
             }
 
             info.Append("\n\t IP forwarding enabled: ").Append(resource.IsIPForwardingEnabled)
+                    .Append("\n\tAccelerated networking enabled: ").Append(resource.IsAcceleratedNetworkingEnabled)
                     .Append("\n\tMAC Address:").Append(resource.MacAddress)
                     .Append("\n\tPrivate IP:").Append(resource.PrimaryPrivateIP)
                     .Append("\n\tPrivate allocation method:").Append(resource.PrimaryPrivateIPAllocationMethod)
@@ -1606,24 +1644,24 @@ namespace Microsoft.Azure.Management.Samples.Common
             return secret;
         }
 
-        public static void Print(IDocumentDBAccount documentDBAccount)
+        public static void Print(ICosmosDBAccount cosmosDBAccount)
         {
             StringBuilder builder = new StringBuilder()
-                    .Append("DocumentDB: ").Append(documentDBAccount.Id)
-                    .Append("\n\tName: ").Append(documentDBAccount.Name)
-                    .Append("\n\tResourceGroupName: ").Append(documentDBAccount.ResourceGroupName)
-                    .Append("\n\tKind: ").Append(documentDBAccount.Kind.ToString())
-                    .Append("\n\tDefault consistency level: ").Append(documentDBAccount.ConsistencyPolicy.DefaultConsistencyLevel)
-                    .Append("\n\tIP range filter: ").Append(documentDBAccount.IPRangeFilter);
+                    .Append("CosmosDB: ").Append(cosmosDBAccount.Id)
+                    .Append("\n\tName: ").Append(cosmosDBAccount.Name)
+                    .Append("\n\tResourceGroupName: ").Append(cosmosDBAccount.ResourceGroupName)
+                    .Append("\n\tKind: ").Append(cosmosDBAccount.Kind.ToString())
+                    .Append("\n\tDefault consistency level: ").Append(cosmosDBAccount.ConsistencyPolicy.DefaultConsistencyLevel)
+                    .Append("\n\tIP range filter: ").Append(cosmosDBAccount.IPRangeFilter);
 
-            foreach (Location writeReplica in documentDBAccount.WritableReplications)
+            foreach (Location writeReplica in cosmosDBAccount.WritableReplications)
             {
                 builder.Append("\n\t\tWrite replication: ")
                         .Append("\n\t\t\tName :").Append(writeReplica.LocationName);
             }
 
-            builder.Append("\n\tNumber of read replications: ").Append(documentDBAccount.ReadableReplications.Count);
-            foreach (Location readReplica in documentDBAccount.ReadableReplications)
+            builder.Append("\n\tNumber of read replications: ").Append(cosmosDBAccount.ReadableReplications.Count);
+            foreach (Location readReplica in cosmosDBAccount.ReadableReplications)
             {
                 builder.Append("\n\t\tRead replication: ")
                         .Append("\n\t\t\tName :").Append(readReplica.LocationName);
@@ -1637,7 +1675,7 @@ namespace Microsoft.Azure.Management.Samples.Common
             StringBuilder builder = new StringBuilder()
                 .Append("Active Directory Application: ").Append(application.Id)
                 .Append("\n\tName: ").Append(application.Name)
-                .Append("\n\tSign on URL: ").Append(application.SignOnUrl)
+                .Append("\n\tSign on URL: ").Append(application.SignOnUrl.ToString())
                 .Append("\n\tReply URLs:");
             foreach (string replyUrl in application.ReplyUrls)
             {
@@ -1670,7 +1708,13 @@ namespace Microsoft.Azure.Management.Samples.Common
                     .Append("Active Directory Group: ").Append(group.Id)
                     .Append("\n\tName: ").Append(group.Name)
                     .Append("\n\tMail: ").Append(group.Mail)
-                    .Append("\n\tSecurity Enabled: ").Append(group.SecurityEnabled);
+                    .Append("\n\tSecurity Enabled: ").Append(group.SecurityEnabled)
+                    .Append("\n\tGroup members:");
+
+            foreach (var obj in group.ListMembers())
+            {
+                builder.Append("\n\t\tType: ").Append(obj.GetType().Name).Append("\tName: ").Append(obj.Name);
+            }
 
             Log(builder.ToString());
         }
@@ -1729,6 +1773,143 @@ namespace Microsoft.Azure.Management.Samples.Common
                 .Append("\n\tPrincipal Id: ").Append(roleAssignment.PrincipalId)
                 .Append("\n\tRole Definition Id: ").Append(roleAssignment.RoleDefinitionId);
             Utilities.Log(builder.ToString());
+        }
+
+        public static void Print(INetworkWatcher nw)
+        {
+            StringBuilder builder = new StringBuilder()
+                .Append("Network Watcher: ").Append(nw.Id)
+                .Append("\n\tName: ").Append(nw.Name)
+                .Append("\n\tResource group name: ").Append(nw.ResourceGroupName)
+                .Append("\n\tRegion name: ").Append(nw.RegionName);
+            Utilities.Log(builder.ToString());
+        }
+
+        public static void Print(IPacketCapture resource)
+        {
+            StringBuilder sb = new StringBuilder().Append("Packet Capture: ").Append(resource.Id)
+                .Append("\n\tName: ").Append(resource.Name)
+                .Append("\n\tTarget id: ").Append(resource.TargetId)
+                .Append("\n\tTime limit in seconds: ").Append(resource.TimeLimitInSeconds)
+                .Append("\n\tBytes to capture per packet: ").Append(resource.BytesToCapturePerPacket)
+                .Append("\n\tProvisioning state: ").Append(resource.ProvisioningState)
+                .Append("\n\tStorage location:")
+                .Append("\n\tStorage account id: ").Append(resource.StorageLocation.StorageId)
+                .Append("\n\tStorage account path: ").Append(resource.StorageLocation.StoragePath)
+                .Append("\n\tFile path: ").Append(resource.StorageLocation.FilePath)
+                .Append("\n\t Packet capture filters: ").Append(resource.Filters.Count);
+            foreach (var filter in resource.Filters)
+            {
+                sb.Append("\n\t\tProtocol: ").Append(filter.Protocol);
+                sb.Append("\n\t\tLocal IP address: ").Append(filter.LocalIPAddress);
+                sb.Append("\n\t\tRemote IP address: ").Append(filter.RemoteIPAddress);
+                sb.Append("\n\t\tLocal port: ").Append(filter.LocalPort);
+                sb.Append("\n\t\tRemote port: ").Append(filter.RemotePort);
+            }
+            Utilities.Log(sb.ToString());
+        }
+
+        public static void Print(IVerificationIPFlow resource)
+        {
+            Utilities.Log(new StringBuilder("IP flow verification: ")
+                .Append("\n\tAccess: ").Append(resource.Access)
+                .Append("\n\tRule name: ").Append(resource.RuleName)
+                .ToString());
+        }
+
+        public static void Print(ITopology resource)
+        {
+            StringBuilder sb = new StringBuilder().Append("Topology: ").Append(resource.Id)
+                .Append("\n\tResource group: ").Append(resource.ResourceGroupName)
+                .Append("\n\tCreated time: ").Append(resource.CreatedTime)
+                .Append("\n\tLast modified time: ").Append(resource.LastModifiedTime);
+            foreach (var tr in resource.Resources.Values)
+            {
+                sb.Append("\n\tTopology resource: ").Append(tr.Id)
+                    .Append("\n\t\tName: ").Append(tr.Name)
+                    .Append("\n\t\tLocation: ").Append(tr.Location)
+                    .Append("\n\t\tAssociations:");
+                foreach (var association in tr.Associations)
+                {
+                    sb.Append("\n\t\t\tName:").Append(association.Name)
+                        .Append("\n\t\t\tResource id:").Append(association.ResourceId)
+                        .Append("\n\t\t\tAssociation type:").Append(association.AssociationType);
+                }
+            }
+            Utilities.Log(sb.ToString());
+        }
+
+        public static void Print(IFlowLogSettings resource)
+        {
+            Utilities.Log(new StringBuilder().Append("Flow log settings: ")
+                .Append("Target resource id: ").Append(resource.TargetResourceId)
+                .Append("\n\tFlow log enabled: ").Append(resource.Enabled)
+                .Append("\n\tStorage account id: ").Append(resource.StorageId)
+                .Append("\n\tRetention policy enabled: ").Append(resource.IsRetentionEnabled)
+                .Append("\n\tRetention policy days: ").Append(resource.RetentionDays)
+                .ToString());
+        }
+
+        public static void Print(ISecurityGroupView resource)
+        {
+            StringBuilder sb = new StringBuilder().Append("Security group view: ")
+                .Append("\n\tVirtual machine id: ").Append(resource.VMId);
+            foreach (var sgni in resource.NetworkInterfaces.Values)
+            {
+                sb.Append("\n\tSecurity group network interface:").Append(sgni.Id)
+                    .Append("\n\t\tSecurity group network interface:")
+                    .Append("\n\t\tEffective security rules:");
+                foreach (var rule in sgni.SecurityRuleAssociations.EffectiveSecurityRules)
+                {
+                    sb.Append("\n\t\t\tName: ").Append(rule.Name)
+                        .Append("\n\t\t\tDirection: ").Append(rule.Direction)
+                        .Append("\n\t\t\tAccess: ").Append(rule.Access)
+                        .Append("\n\t\t\tPriority: ").Append(rule.Priority)
+                        .Append("\n\t\t\tSource address prefix: ").Append(rule.SourceAddressPrefix)
+                        .Append("\n\t\t\tSource port range: ").Append(rule.SourcePortRange)
+                        .Append("\n\t\t\tDestination address prefix: ").Append(rule.DestinationAddressPrefix)
+                        .Append("\n\t\t\tDestination port range: ").Append(rule.DestinationPortRange)
+                        .Append("\n\t\t\tProtocol: ").Append(rule.Protocol);
+                }
+                sb.Append("\n\t\tSubnet:").Append(sgni.SecurityRuleAssociations.SubnetAssociation.Id);
+                printSecurityRule(sb, sgni.SecurityRuleAssociations.SubnetAssociation.SecurityRules);
+                if (sgni.SecurityRuleAssociations.NetworkInterfaceAssociation != null)
+                {
+                    sb.Append("\n\t\tNetwork interface:")
+                        .Append(sgni.SecurityRuleAssociations.NetworkInterfaceAssociation.Id);
+                    printSecurityRule(sb, sgni.SecurityRuleAssociations.NetworkInterfaceAssociation.SecurityRules);
+                }
+                sb.Append("\n\t\tDefault security rules:");
+                printSecurityRule(sb, sgni.SecurityRuleAssociations.DefaultSecurityRules);
+            }
+            Utilities.Log(sb.ToString());
+        }
+
+        private static void printSecurityRule(StringBuilder sb, IList<SecurityRuleInner> rules)
+        {
+            foreach (var rule in rules)
+            {
+                sb.Append("\n\t\t\tName: ").Append(rule.Name)
+                    .Append("\n\t\t\tDirection: ").Append(rule.Direction)
+                    .Append("\n\t\t\tAccess: ").Append(rule.Access)
+                    .Append("\n\t\t\tPriority: ").Append(rule.Priority)
+                    .Append("\n\t\t\tSource address prefix: ").Append(rule.SourceAddressPrefix)
+                    .Append("\n\t\t\tSource port range: ").Append(rule.SourcePortRange)
+                    .Append("\n\t\t\tDestination address prefix: ").Append(rule.DestinationAddressPrefix)
+                    .Append("\n\t\t\tDestination port range: ").Append(rule.DestinationPortRange)
+                    .Append("\n\t\t\tProtocol: ").Append(rule.Protocol)
+                    .Append("\n\t\t\tDescription: ").Append(rule.Description)
+                    .Append("\n\t\t\tProvisioning state: ").Append(rule.ProvisioningState);
+            }
+        }
+
+        public static void Print(INextHop resource)
+        {
+            StringBuilder sb = new StringBuilder("Next hop: ")
+                .Append("Next hop type: ").Append(resource.NextHopType)
+                .Append("\n\tNext hop ip address: ").Append(resource.NextHopIpAddress)
+                .Append("\n\tRoute table id: ").Append(resource.RouteTableId);
+            Utilities.Log(sb.ToString());
         }
 
         public static void CreateCertificate(string domainName, string pfxPath, string password)
