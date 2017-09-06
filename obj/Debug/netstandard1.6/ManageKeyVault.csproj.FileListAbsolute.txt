@@ -1,2 +1,0 @@
-C:\Sources\dotnet-samples\key-vault-dotnet-manage-key-vaults\bin\Debug\netstandard1.6\ManageKeyVault.deps.json
-C:\Sources\dotnet-samples\key-vault-dotnet-manage-key-vaults\obj\Debug\netstandard1.6\ManageKeyVault.csproj.CoreCompileInputs.cache

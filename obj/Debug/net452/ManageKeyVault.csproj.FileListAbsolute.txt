@@ -1,4 +1,0 @@
-C:\Sources\dotnet-samples\key-vault-dotnet-manage-key-vaults\bin\Debug\net452\ManageKeyVault.runtimeconfig.json
-C:\Sources\dotnet-samples\key-vault-dotnet-manage-key-vaults\bin\Debug\net452\ManageKeyVault.runtimeconfig.dev.json
-C:\Sources\dotnet-samples\key-vault-dotnet-manage-key-vaults\obj\Debug\net452\ManageKeyVault.csproj.ManageKeyVault.exe.config
-C:\Sources\dotnet-samples\key-vault-dotnet-manage-key-vaults\obj\Debug\net452\ManageKeyVault.csproj.CoreCompileInputs.cache
