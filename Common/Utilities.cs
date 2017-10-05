@@ -40,6 +40,7 @@ using Microsoft.Azure.Management.Compute.Fluent.Models;
 using Microsoft.Azure.Management.Graph.RBAC.Fluent;
 using Microsoft.Azure.Management.Graph.RBAC.Fluent.Models;
 using Microsoft.Azure.Management.Network.Fluent.Models;
+using Microsoft.Azure.Management.ContainerInstance.Fluent;
 
 namespace Microsoft.Azure.Management.Samples.Common
 {
@@ -783,11 +784,30 @@ namespace Microsoft.Azure.Management.Samples.Common
             {
                 info.Append("\n\tSubnet: ").Append(subnet.Name)
                         .Append("\n\t\tAddress prefix: ").Append(subnet.AddressPrefix);
+
+                // Output associated NSG
                 var subnetNsg = subnet.GetNetworkSecurityGroup();
                 if (subnetNsg != null)
                 {
                     info.Append("\n\t\tNetwork security group: ").Append(subnetNsg.Id);
                 }
+
+                // Output associated route table
+                var routeTable = subnet.GetRouteTable();
+                if (routeTable != null)
+                {
+                    info.Append("\n\tRoute table ID: ").Append(routeTable.Id);
+                }
+            }
+
+            // Output peerings
+            foreach (var peering in network.Peerings.List())
+            {
+                info.Append("\n\tPeering: ").Append(peering.Name)
+                    .Append("\n\t\tRemote network ID: ").Append(peering.RemoteNetworkId)
+                    .Append("\n\t\tPeering state: ").Append(peering.State)
+                    .Append("\n\t\tIs traffic forwarded from remote network allowed? ").Append(peering.IsTrafficForwardingFromRemoteNetworkAllowed)
+                    .Append("\n\t\tGateway use: ").Append(peering.GatewayUse);
             }
 
             Utilities.Log(info.ToString());
@@ -1573,6 +1593,92 @@ namespace Microsoft.Azure.Management.Samples.Common
             Log(info.ToString());
         }
 
+        public static void Print(IContainerGroup containerGroup)
+        {
+            StringBuilder info = new StringBuilder();
+
+            info = new StringBuilder().Append("Container Group: ").Append(containerGroup.Id)
+                .Append("Name: ").Append(containerGroup.Name)
+                .Append("\n\tResource group: ").Append(containerGroup.ResourceGroupName)
+                .Append("\n\tRegion: ").Append(containerGroup.RegionName)
+                .Append("\n\tTags: ").Append(containerGroup.Tags)
+                .Append("\n\tOS type: ").Append(containerGroup.OSType.Value);
+
+            if (containerGroup.IPAddress != null)
+            {
+                info.Append("\n\tPublic IP address: ").Append(containerGroup.IPAddress);
+                info.Append("\n\tExternal TCP ports:");
+                foreach (int port in containerGroup.ExternalTcpPorts)
+                {
+                    info.Append(" ").Append(port);
+                }
+                info.Append("\n\tExternal UDP ports:");
+                foreach (int port in containerGroup.ExternalUdpPorts)
+                {
+                    info.Append(" ").Append(port);
+                }
+            }
+            if (containerGroup.ImageRegistryServers.Count > 0)
+            {
+                info.Append("\n\tPrivate Docker image registries:");
+                foreach (string server in containerGroup.ImageRegistryServers)
+                {
+                    info.Append(" ").Append(server);
+                }
+            }
+            if (containerGroup.Volumes.Count > 0)
+            {
+                info.Append("\n\tVolume mapping: ");
+                foreach (var entry in containerGroup.Volumes)
+                {
+                    info.Append("\n\t\tName: ").Append(entry.Key).Append(" -> ").Append(entry.Value.AzureFile.ShareName);
+                }
+            }
+            if (containerGroup.Containers.Count > 0)
+            {
+                info.Append("\n\tContainer instances: ");
+                foreach (var entry in containerGroup.Containers)
+                {
+                    var container = entry.Value;
+                    info.Append("\n\t\tName: ").Append(entry.Key).Append(" -> ").Append(container.Image);
+                    info.Append("\n\t\t\tResources: ");
+                    info.Append(container.Resources.Requests.Cpu).Append(" CPUs ");
+                    info.Append(container.Resources.Requests.MemoryInGB).Append(" GB");
+                    info.Append("\n\t\t\tPorts:");
+                    foreach (var port in container.Ports)
+                    {
+                        info.Append(" ").Append(port.Port);
+                    }
+                    if (container.VolumeMounts != null)
+                    {
+                        info.Append("\n\t\t\tVolume mounts:");
+                        foreach (var volumeMount in container.VolumeMounts)
+                        {
+                            info.Append(" ").Append(volumeMount.Name).Append("->").Append(volumeMount.MountPath);
+                        }
+                    }
+                    if (container.Command != null)
+                    {
+                        info.Append("\n\t\t\tStart commands:");
+                        foreach (var command in container.Command)
+                        {
+                            info.Append("\n\t\t\t\t").Append(command);
+                        }
+                    }
+                    if (container.EnvironmentVariables != null)
+                    {
+                        info.Append("\n\t\t\tENV vars:");
+                        foreach (var envVar in container.EnvironmentVariables)
+                        {
+                            info.Append("\n\t\t\t\t").Append(envVar.Name).Append("=").Append(envVar.Value);
+                        }
+                    }
+                }
+            }
+
+            Log(info.ToString());
+        }
+
         /**
          * Print an Azure Container Service.
          * @param containerService an Azure Container Service
@@ -1594,7 +1700,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                 .Append("\n\t\tAgent pool leaf domain label: ").Append(containerService.AgentPoolLeafDomainLabel)
                 .Append("\n\tLinux user name: ").Append(containerService.LinuxRootUsername)
                 .Append("\n\tSSH key: ").Append(containerService.SshKey);
-            if (containerService.OrchestratorType == ContainerServiceOchestratorTypes.Kubernetes)
+            if (containerService.OrchestratorType == ContainerServiceOrchestratorTypes.Kubernetes)
             {
                 info.Append("\n\tName: ").Append(containerService.ServicePrincipalClientId);
             }
@@ -1909,6 +2015,24 @@ namespace Microsoft.Azure.Management.Samples.Common
                 .Append("Next hop type: ").Append(resource.NextHopType)
                 .Append("\n\tNext hop ip address: ").Append(resource.NextHopIpAddress)
                 .Append("\n\tRoute table id: ").Append(resource.RouteTableId);
+            Utilities.Log(sb.ToString());
+        }
+
+        public static void Print(IVirtualNetworkGatewayConnection resource)
+        {
+            StringBuilder sb = new StringBuilder("Virtual network gateway connection: ")
+                .Append("\n\tId: ").Append(resource.Id)
+                .Append("\n\tName: ").Append(resource.Name)
+                .Append("\n\tResource group: ").Append(resource.ResourceGroupName)
+                .Append("\n\tRegion: ").Append(resource.RegionName)
+                .Append("\n\tConnection type: ").Append(resource.ConnectionType)
+                .Append("\n\tConnection status: ").Append(resource.ConnectionStatus.Value)
+                .Append("\n\tFirst virtual network gateway id: ").Append(resource.VirtualNetworkGateway1Id)
+                .Append("\n\tSecond virtual network gateway id: ").Append(resource.VirtualNetworkGateway2Id)
+                .Append("\n\tLocal network gateway id: ").Append(resource.LocalNetworkGateway2Id)
+                .Append("\n\tBgp enabled: ").Append(resource.IsBgpEnabled)
+                .Append("\n\tEgressBytesTransferred: ").Append(resource.EgressBytesTransferred)
+                .Append("\n\tIngressBytesTransferred: ").Append(resource.IngressBytesTransferred);
             Utilities.Log(sb.ToString());
         }
 
