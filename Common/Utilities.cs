@@ -7,6 +7,8 @@ using Microsoft.Azure.Management.Batch.Fluent;
 using Microsoft.Azure.Management.Compute.Fluent;
 using Microsoft.Azure.Management.ContainerRegistry.Fluent;
 using Microsoft.Azure.Management.ContainerRegistry.Fluent.Models;
+using Microsoft.Azure.Management.ContainerService.Fluent;
+using Microsoft.Azure.Management.ContainerService.Fluent.Models;
 using Microsoft.Azure.Management.KeyVault.Fluent;
 using Microsoft.Azure.Management.Network.Fluent;
 using Microsoft.Azure.Management.Redis.Fluent;
@@ -41,6 +43,7 @@ using Microsoft.Azure.Management.Graph.RBAC.Fluent;
 using Microsoft.Azure.Management.Graph.RBAC.Fluent.Models;
 using Microsoft.Azure.Management.Network.Fluent.Models;
 using Microsoft.Azure.Management.ContainerInstance.Fluent;
+using Microsoft.Azure.Management.Locks.Fluent;
 
 namespace Microsoft.Azure.Management.Samples.Common
 {
@@ -164,7 +167,12 @@ namespace Microsoft.Azure.Management.Samples.Common
                     .Append("\n\t\t\tCookie based affinity: ").Append(httpConfig.CookieBasedAffinity)
                     .Append("\n\t\t\tPort: ").Append(httpConfig.Port)
                     .Append("\n\t\t\tRequest timeout in seconds: ").Append(httpConfig.RequestTimeout)
-                    .Append("\n\t\t\tProtocol: ").Append(httpConfig.Protocol.ToString());
+                    .Append("\n\t\t\tProtocol: ").Append(httpConfig.Protocol.ToString())
+                    .Append("\n\t\tHost header: ").Append(httpConfig.HostHeader)
+                    .Append("\n\t\tHost header comes from backend? ").Append(httpConfig.IsHostHeaderFromBackend)
+                    .Append("\n\t\tConnection draining timeout in seconds: ").Append(httpConfig.ConnectionDrainingTimeoutInSeconds)
+                    .Append("\n\t\tAffinity cookie name: ").Append(httpConfig.AffinityCookieName)
+                    .Append("\n\t\tPath: ").Append(httpConfig.Path);
 
                 var probe = httpConfig.Probe;
                 if (probe != null)
@@ -180,6 +188,20 @@ namespace Microsoft.Azure.Management.Samples.Common
             {
                 info.Append("\n\t\tName: ").Append(cert.Name)
                     .Append("\n\t\t\tCert data: ").Append(cert.PublicData);
+            }
+
+            // Show redirect configurations
+            var redirects = resource.RedirectConfigurations;
+            info.Append("\n\tRedirect configurations: ").Append(redirects.Count);
+            foreach (IApplicationGatewayRedirectConfiguration redirect in redirects.Values)
+            {
+                info.Append("\n\t\tName: ").Append(redirect.Name)
+                    .Append("\n\t\tTarget URL: ").Append(redirect.Type)
+                    .Append("\n\t\tTarget URL: ").Append(redirect.TargetUrl)
+                    .Append("\n\t\tTarget listener: ").Append(redirect.TargetListener?.Name)
+                    .Append("\n\t\tIs path included? ").Append(redirect.IsPathIncluded)
+                    .Append("\n\t\tIs query string included? ").Append(redirect.IsQueryStringIncluded)
+                    .Append("\n\t\tReferencing request routing rules: ").Append(string.Join(", ", redirect.RequestRoutingRules.Keys.ToArray()));
             }
 
             // Show HTTP listeners
@@ -213,7 +235,8 @@ namespace Microsoft.Azure.Management.Samples.Common
                     .Append("\n\t\t\tFrontend port: ").Append(rule.FrontendPort)
                     .Append("\n\t\t\tFrontend protocol: ").Append(rule.FrontendProtocol.ToString())
                     .Append("\n\t\t\tBackend port: ").Append(rule.BackendPort)
-                    .Append("\n\t\t\tCookie based affinity enabled? ").Append(rule.CookieBasedAffinity);
+                    .Append("\n\t\t\tCookie based affinity enabled? ").Append(rule.CookieBasedAffinity)
+                    .Append("\n\t\tRedirect configuration: ").Append(rule.RedirectConfiguration?.Name ?? "(none)");
 
                 // Show backend addresses
                 var addresses = rule.BackendAddresses;
@@ -225,53 +248,19 @@ namespace Microsoft.Azure.Management.Samples.Common
                         .Append(" [").Append(address.IpAddress).Append("]");
                 }
 
-                // Show SSL cert
-                info.Append("\n\t\t\tSSL certificate name: ");
-                var cert = rule.SslCertificate;
-                if (cert == null)
-                {
-                    info.Append("(None)");
-                }
-                else
-                {
-                    info.Append(cert.Name);
-                }
+                
+                info
+                    // Show SSL cert
+                    .Append("\n\t\t\tSSL certificate name: ").Append(rule.SslCertificate?.Name ?? "(none)")
 
-                // Show backend
-                info.Append("\n\t\t\tAssociated backend address pool: ");
-                var backend = rule.Backend;
-                if (backend == null)
-                {
-                    info.Append("(None)");
-                }
-                else
-                {
-                    info.Append(backend.Name);
-                }
+                    // Show backend
+                    .Append("\n\t\t\tAssociated backend address pool: ").Append(rule.Backend?.Name ?? "(none)")
 
-                // Show backend HTTP settings config
-                info.Append("\n\t\t\tAssociated backend HTTP settings configuration: ");
-                var config = rule.BackendHttpConfiguration;
-                if (config == null)
-                {
-                    info.Append("(None)");
-                }
-                else
-                {
-                    info.Append(config.Name);
-                }
+                    // Show backend HTTP settings config
+                    .Append("\n\t\t\tAssociated backend HTTP settings configuration: ").Append(rule.BackendHttpConfiguration?.Name ?? "(none)")
 
-                // Show frontend listener
-                info.Append("\n\t\t\tAssociated frontend listener: ");
-                var listener = rule.Listener;
-                if (listener == null)
-                {
-                    info.Append("(None)");
-                }
-                else
-                {
-                    info.Append(config.Name);
-                }
+                    // Show frontend listener
+                    .Append("\n\t\t\tAssociated frontend listener: ").Append(rule.Listener?.Name ?? "(none)");
             }
 
             // Show probes  
@@ -284,7 +273,9 @@ namespace Microsoft.Azure.Management.Samples.Common
                     .Append("\n\t\tInterval in seconds: ").Append(probe.TimeBetweenProbesInSeconds)
                     .Append("\n\t\tRetries: ").Append(probe.RetriesBeforeUnhealthy)
                     .Append("\n\t\tTimeout: ").Append(probe.TimeoutInSeconds)
-                    .Append("\n\t\tHost: ").Append(probe.Host);
+                    .Append("\n\t\tHost: ").Append(probe.Host)
+                    .Append("\n\t\tHealthy HTTP response status code ranges: ").Append(probe.HealthyHttpResponseStatusCodeRanges)
+                    .Append("\n\t\tHealthy HTTP response body contents: ").Append(probe.HealthyHttpResponseBodyContents);
             }
 
             Utilities.Log(info.ToString());
@@ -310,7 +301,7 @@ namespace Microsoft.Azure.Management.Samples.Common
             Log(builder.ToString());
         }
 
-        public static void Print(Search.Fluent.ISearchService searchService)
+        public static void Print(ISearchService searchService)
         {
             var adminKeys = searchService.GetAdminKeys();
             var queryKeys = searchService.ListQueryKeys();
@@ -457,6 +448,15 @@ namespace Microsoft.Azure.Management.Samples.Common
                     .Append("\n\tTransferDeadLetterMessageCount: ").Append(queue.TransferDeadLetterMessageCount);
 
             Utilities.Log(builder.ToString());
+        }
+
+        public static void Print(IManagementLock l)
+        {
+            StringBuilder info = new StringBuilder();
+            info.Append("\nLock ID: ").Append(l.Id)
+            .Append("\nLocked resource ID: ").Append(l.LockedResourceId)
+            .Append("\nLevel: ").Append(l.Level);
+            Utilities.Log(info.ToString());
         }
 
         public static void Print(IServiceBusNamespace serviceBusNamespace)
@@ -1219,12 +1219,12 @@ namespace Microsoft.Azure.Management.Samples.Common
                 }
             }
             builder = builder.Append("\n\tApp settings: ");
-            foreach (var setting in resource.AppSettings.Values)
+            foreach (var setting in resource.GetAppSettings().Values)
             {
                 builder = builder.Append("\n\t\t" + setting.Key + ": " + setting.Value + (setting.Sticky ? " - slot setting" : ""));
             }
             builder = builder.Append("\n\tConnection strings: ");
-            foreach (var conn in resource.ConnectionStrings.Values)
+            foreach (var conn in resource.GetConnectionStrings().Values)
             {
                 builder = builder.Append("\n\t\t" + conn.Name + ": " + conn.Value + " - " + conn.Type + (conn.Sticky ? " - slot setting" : ""));
             }
@@ -1583,13 +1583,13 @@ namespace Microsoft.Azure.Management.Samples.Common
         {
             StringBuilder info = new StringBuilder();
 
-            RegistryListCredentials acrCredentials = azureRegistry.ListCredentials();
+            var acrCredentials = azureRegistry.GetCredentials();
             info.Append("Azure Container Registry: ").Append(azureRegistry.Id)
                 .Append("\n\tName: ").Append(azureRegistry.Name)
                 .Append("\n\tServer Url: ").Append(azureRegistry.LoginServerUrl)
                 .Append("\n\tUser: ").Append(acrCredentials.Username)
-                .Append("\n\tFirst Password: ").Append(acrCredentials.Passwords[0].Value)
-                .Append("\n\tSecond Password: ").Append(acrCredentials.Passwords[1].Value);
+                .Append("\n\tFirst Password: ").Append(acrCredentials.AccessKeys[AccessKeyType.Primary])
+                .Append("\n\tSecond Password: ").Append(acrCredentials.AccessKeys[AccessKeyType.Secondary]);
             Log(info.ToString());
         }
 
@@ -1683,7 +1683,7 @@ namespace Microsoft.Azure.Management.Samples.Common
          * Print an Azure Container Service.
          * @param containerService an Azure Container Service
          */
-        public static void Print(IContainerService containerService)
+        public static void Print(ContainerService.Fluent.IContainerService containerService)
         {
             StringBuilder info = new StringBuilder();
 
@@ -1692,18 +1692,40 @@ namespace Microsoft.Azure.Management.Samples.Common
                 .Append("\n\tWith orchestration: ").Append(containerService.OrchestratorType.ToString())
                 .Append("\n\tMaster FQDN: ").Append(containerService.MasterFqdn)
                 .Append("\n\tMaster node count: ").Append(containerService.MasterNodeCount)
-                .Append("\n\tMaster leaf domain label: ").Append(containerService.MasterLeafDomainLabel)
-                .Append("\n\t\tWith Agent pool name: ").Append(containerService.AgentPoolName)
-                .Append("\n\t\tAgent pool count: ").Append(containerService.AgentPoolCount)
-                .Append("\n\t\tAgent pool count: ").Append(containerService.AgentPoolVMSize.ToString())
-                .Append("\n\t\tAgent pool FQDN: ").Append(containerService.AgentPoolFqdn)
-                .Append("\n\t\tAgent pool leaf domain label: ").Append(containerService.AgentPoolLeafDomainLabel)
+                .Append("\n\tMaster leaf domain label: ").Append(containerService.MasterDnsPrefix)
+                .Append("\n\t\tWith Agent pool name: ").Append(containerService.AgentPools.First().Value.Name)
+                .Append("\n\t\tAgent pool count: ").Append(containerService.AgentPools.First().Value.Count)
+                .Append("\n\t\tAgent virtual machine size: ").Append(containerService.AgentPools.First().Value.VMSize.ToString())
+                .Append("\n\t\tAgent pool FQDN: ").Append(containerService.AgentPools.First().Value.Fqdn)
+                .Append("\n\t\tAgent DNS prefix: ").Append(containerService.AgentPools.First().Value.DnsPrefix)
                 .Append("\n\tLinux user name: ").Append(containerService.LinuxRootUsername)
                 .Append("\n\tSSH key: ").Append(containerService.SshKey);
-            if (containerService.OrchestratorType == ContainerServiceOrchestratorTypes.Kubernetes)
+            if (containerService.OrchestratorType == ContainerService.Fluent.Models.ContainerServiceOrchestratorTypes.Kubernetes)
             {
-                info.Append("\n\tName: ").Append(containerService.ServicePrincipalClientId);
+                info.Append("\n\tService Principal ID: ").Append(containerService.ServicePrincipalClientId);
             }
+
+            Log(info.ToString());
+        }
+
+        /**
+         * Print a Kubernetes cluster.
+         * @param kubernetesCluster a Kubernetes cluster instance
+         */
+        public static void Print(ContainerService.Fluent.IKubernetesCluster kubernetesCluster)
+        {
+            StringBuilder info = new StringBuilder();
+
+            info.Append("Azure Container Service: ").Append(kubernetesCluster.Id)
+                .Append("\n\tName: ").Append(kubernetesCluster.Name)
+                .Append("\n\tFQDN: ").Append(kubernetesCluster.Fqdn)
+                .Append("\n\tDNS prefix: ").Append(kubernetesCluster.DnsPrefix)
+                .Append("\n\t\tWith Agent pool name: ").Append(kubernetesCluster.AgentPools.First().Value.Name)
+                .Append("\n\t\tAgent pool count: ").Append(kubernetesCluster.AgentPools.First().Value.Count)
+                .Append("\n\t\tAgent virtual machine size: ").Append(kubernetesCluster.AgentPools.First().Value.VMSize.ToString())
+                .Append("\n\tLinux user name: ").Append(kubernetesCluster.LinuxRootUsername)
+                .Append("\n\tSSH key: ").Append(kubernetesCluster.SshKey)
+                .Append("\n\tService principal ID: ").Append(kubernetesCluster.ServicePrincipalClientId);
 
             Log(info.ToString());
         }
@@ -2227,6 +2249,37 @@ namespace Microsoft.Azure.Management.Samples.Common
                 }
             }
         }
+
+        public static void CreateContainer(string connectionString, string containerName)
+        {
+            if (!IsRunningMocked)
+            {
+                CloudStorageAccount storageAccount;
+                try
+                {
+                    storageAccount = CloudStorageAccount.Parse(connectionString);
+                }
+                catch (FormatException)
+                {
+                    Utilities.Log("Invalid storage account information provided. Please confirm the AccountName and AccountKey are valid in the app.config file - then restart the sample.");
+                    Utilities.ReadLine();
+                    throw;
+                }
+                catch (ArgumentException)
+                {
+                    Utilities.Log("Invalid storage account information provided. Please confirm the AccountName and AccountKey are valid in the app.config file - then restart the sample.");
+                    Utilities.ReadLine();
+                    throw;
+                }
+                // Create a blob client for interacting with the blob service.
+                var blobClient = storageAccount.CreateCloudBlobClient();
+                // Create a container for organizing blobs within the storage account.
+                Utilities.Log("Creating Container");
+                var container = blobClient.GetContainerReference(containerName);
+                container.CreateIfNotExistsAsync().GetAwaiter().GetResult();
+            }
+        }
+
 
         public static void DeployByGit(IPublishingProfile profile, string repository)
         {
