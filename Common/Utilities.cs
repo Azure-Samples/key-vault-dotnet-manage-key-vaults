@@ -44,6 +44,7 @@ using Microsoft.Azure.Management.Graph.RBAC.Fluent.Models;
 using Microsoft.Azure.Management.Network.Fluent.Models;
 using Microsoft.Azure.Management.ContainerInstance.Fluent;
 using Microsoft.Azure.Management.Locks.Fluent;
+using Microsoft.Azure.Management.Msi.Fluent;
 
 namespace Microsoft.Azure.Management.Samples.Common
 {
@@ -87,6 +88,32 @@ namespace Microsoft.Azure.Management.Samples.Common
         public static string ReadLine()
         {
             return PauseMethod.Invoke();
+        }
+
+        // Print resource group info.
+        public static void PrintResourceGroup(IResourceGroup resource)
+        {
+            StringBuilder info = new StringBuilder();
+            info.Append("Resource Group: ").Append(resource.Id)
+                    .Append("\n\tName: ").Append(resource.Name)
+                    .Append("\n\tRegion: ").Append(resource.Region)
+                    .Append("\n\tTags: ").Append(resource.Tags.ToString());
+            Log(info.ToString());
+        }
+
+        // Print UserAssigned MSI info.
+        public static void PrintIdentity(IIdentity resource)
+        {
+            StringBuilder info = new StringBuilder();
+            info.Append("Identity: ").Append(resource.Id)
+                    .Append("\n\tName: ").Append(resource.Name)
+                    .Append("\n\tRegion: ").Append(resource.Region)
+                    .Append("\n\tTags: ").Append(resource.Tags.ToString())
+                    .Append("\n\tService Principal Id: ").Append(resource.PrincipalId)
+                    .Append("\n\tClient Id: ").Append(resource.ClientId)
+                    .Append("\n\tTenant Id: ").Append(resource.TenantId)
+                    .Append("\n\tClient Secret Url: ").Append(resource.ClientSecretUrl);
+            Log(info.ToString());
         }
 
         // Print app gateway info
@@ -647,8 +674,8 @@ namespace Microsoft.Azure.Management.Samples.Common
 
             var msi = new StringBuilder().Append("\n\tMSI: ");
             msi.Append("\n\t\tMSI enabled:").Append(virtualMachine.IsManagedServiceIdentityEnabled);
-            msi.Append("\n\t\tMSI Active Directory Service Principal Id:").Append(virtualMachine.ManagedServiceIdentityPrincipalId);
-            msi.Append("\n\t\tMSI Active Directory Tenant Id:").Append(virtualMachine.ManagedServiceIdentityTenantId);
+            msi.Append("\n\t\tMSI Active Directory Service Principal Id:").Append(virtualMachine.SystemAssignedManagedServiceIdentityPrincipalId);
+            msi.Append("\n\t\tMSI Active Directory Tenant Id:").Append(virtualMachine.SystemAssignedManagedServiceIdentityTenantId);
 
             Utilities.Log(new StringBuilder().Append("Virtual Machine: ").Append(virtualMachine.Id)
                     .Append("Name: ").Append(virtualMachine.Name)
@@ -2311,6 +2338,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                 {
                     using (var client = new HttpClient())
                     {
+                        client.Timeout = TimeSpan.FromSeconds(300);
                         if (headers != null)
                         {
                             foreach (var header in headers)
@@ -2385,7 +2413,7 @@ namespace Microsoft.Azure.Management.Samples.Common
             {
                 parsedTemplate.SelectToken("parameters.hostingPlanName")["defaultValue"] = hostingPlanName;
                 parsedTemplate.SelectToken("parameters.webSiteName")["defaultValue"] = webAppName;
-                parsedTemplate.SelectToken("parameters.skuName")["defaultValue"] = "F1";
+                parsedTemplate.SelectToken("parameters.skuName")["defaultValue"] = "B1";
                 parsedTemplate.SelectToken("parameters.skuCapacity")["defaultValue"] = 1;
             }
             else if (String.Equals("ArmTemplateVM.json", templateFileName, StringComparison.OrdinalIgnoreCase))
