@@ -1,10 +1,10 @@
 ---
-services: Key
-platforms: .Net
+services: Key-Vault
+platforms: dotnet
 author: jianghaolu
 ---
 
-# Getting Started with Key - Manage Key Vault - in .Net #
+# Getting started on managing key vaults in C# #
 
           Azure Key Vault sample for managing key vaults -
            - Create a key vault
