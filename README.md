@@ -26,10 +26,10 @@ Set the environment variable `AZURE_AUTH_LOCATION` with the full path for an aut
     git clone https://github.com/Azure-Samples/key-vault-dotnet-manage-key-vaults.git
 
     cd key-vault-dotnet-manage-key-vaults
-
-    dotnet restore
-
-    dotnet run
+  
+    dotnet build
+    
+    bin\Debug\net452\ManageKeyVault.exe
 
 ## More information ##
 
