@@ -1,4 +1,7 @@
 ---
+page_type: sample
+languages: java
+products: azure
 services: Key-Vault
 platforms: dotnet
 author: yaohaizh
