@@ -4,22 +4,22 @@ languages:
 - csharp
 products:
 - azure
-services: Key-Vault
-platforms: dotnet
-author: yaohaizh
+extensions:
+- services: Key-Vault
+- platforms: dotnet
 ---
 
 # Getting started on managing key vaults in C# #
 
-          Azure Key Vault sample for managing key vaults -
-           - Create a key vault
-           - Authorize an application
-           - Update a key vault
-             - alter configurations
-             - change permissions
-           - Create another key vault
-           - List key vaults
-           - Delete a key vault.
+ Azure Key Vault sample for managing key vaults -
+  - Create a key vault
+  - Authorize an application
+  - Update a key vault
+    - alter configurations
+    - change permissions
+  - Create another key vault
+  - List key vaults
+  - Delete a key vault.
 
 
 ## Running this Sample ##
