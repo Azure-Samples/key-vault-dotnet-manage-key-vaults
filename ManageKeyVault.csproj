@@ -10,7 +10,6 @@
 
   <PropertyGroup>
     <PackageTargetFallback Condition=" '$(TargetFramework)' == 'netstandard2.0' ">$(PackageTargetFallback);dnxcore50</PackageTargetFallback>
-    <NetStandardImplicitPackageVersion Condition=" '$(TargetFramework)' == 'netstandard2.0' ">2.0</NetStandardImplicitPackageVersion>
     <TargetFrameworks>net461;netstandard2.0</TargetFrameworks>
     <ApplicationIcon />
     <OutputTypeEx>exe</OutputTypeEx>
@@ -39,12 +38,12 @@
     <PackageReference Include="System.Reflection" Version="4.3.0" />
   </ItemGroup>
 
-  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|netcoreapp3.0|AnyCPU'">
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net461|AnyCPU'">
     <OutputType>exe</OutputType>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(TargetFramework)' == 'net461' ">
-    <DefineConstants>$(DefineConstants);net461</DefineConstants>
+    <DefineConstants>$(DefineConstants);net45</DefineConstants>
     <DebugType>portable</DebugType>
   </PropertyGroup>
 
