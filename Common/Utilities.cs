@@ -2905,11 +2905,27 @@ namespace Microsoft.Azure.Management.Samples.Common
             }
         }
 
-        public static void UploadFilesToBlob(string connectionString, string containerName, params string[] filePaths)
+        public static void UploadFilesToContainer(string connectionString, string containerName, params string[] filePaths)
         {
             if (!IsRunningMocked)
             {
-                BlobServiceClient blobServiceClient = new BlobServiceClient(connectionString);
+                BlobServiceClient blobServiceClient;
+                try
+                {
+                    blobServiceClient = new BlobServiceClient(connectionString);
+                }
+                catch (FormatException)
+                {
+                    Utilities.Log("Invalid storage account information provided. Please confirm the AccountName and AccountKey are valid in the app.config file - then restart the sample.");
+                    Utilities.ReadLine();
+                    throw;
+                }
+                catch (ArgumentException)
+                {
+                    Utilities.Log("Invalid storage account information provided. Please confirm the AccountName and AccountKey are valid in the app.config file - then restart the sample.");
+                    Utilities.ReadLine();
+                    throw;
+                }
 
                 // Create a container for organizing blobs within the storage account.
                 Utilities.Log("1. Creating Container");
@@ -2931,7 +2947,23 @@ namespace Microsoft.Azure.Management.Samples.Common
         {
             if (!IsRunningMocked)
             {
-                BlobServiceClient blobServiceClient = new BlobServiceClient(connectionString);
+                BlobServiceClient blobServiceClient;
+                try
+                {
+                    blobServiceClient = new BlobServiceClient(connectionString);
+                }
+                catch (FormatException)
+                {
+                    Utilities.Log("Invalid storage account information provided. Please confirm the AccountName and AccountKey are valid in the app.config file - then restart the sample.");
+                    Utilities.ReadLine();
+                    throw;
+                }
+                catch (ArgumentException)
+                {
+                    Utilities.Log("Invalid storage account information provided. Please confirm the AccountName and AccountKey are valid in the app.config file - then restart the sample.");
+                    Utilities.ReadLine();
+                    throw;
+                }
 
                 // Create a container for organizing blobs within the storage account.
                 Utilities.Log("1. Creating Container");
