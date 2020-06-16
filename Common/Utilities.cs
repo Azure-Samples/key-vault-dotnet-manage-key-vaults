@@ -2930,15 +2930,15 @@ namespace Microsoft.Azure.Management.Samples.Common
                 // Create a container for organizing blobs within the storage account.
                 Utilities.Log("1. Creating Container");
                 var container = blobServiceClient.GetBlobContainerClient(containerName);
-                container.CreateIfNotExists();
+                container.CreateIfNotExistsAsync().GetAwaiter().GetResult();
 
                 // Set the permissions on the container
-                container.SetAccessPolicy(PublicAccessType.BlobContainer);
+                container.SetAccessPolicyAsync(PublicAccessType.BlobContainer).GetAwaiter().GetResult();
 
                 foreach (var filePath in filePaths)
                 {
                     var blob = container.GetBlobClient(Path.GetFileName(filePath));
-                    blob.Upload(filePath);
+                    blob.UploadAsync(filePath).GetAwaiter().GetResult();
                 }
             }
         }
@@ -2968,7 +2968,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                 // Create a container for organizing blobs within the storage account.
                 Utilities.Log("1. Creating Container");
                 var container = blobServiceClient.GetBlobContainerClient(containerName);
-                container.CreateIfNotExists();
+                container.CreateIfNotExistsAsync().GetAwaiter().GetResult();
             }
         }
 
@@ -3094,16 +3094,16 @@ namespace Microsoft.Azure.Management.Samples.Common
             return Path.Combine(Utilities.ProjectPath, "Asset", certificateName);
         }
 
-        public static async Task SendMessageToTopic(string connectionString, string topicName, string message)
+        public static void SendMessageToTopic(string connectionString, string topicName, string message)
         {
             if (!IsRunningMocked)
             {
                 try
                 {
                     ServiceBusClient client = new ServiceBusClient(connectionString);
-                    await using var sender = client.CreateSender(topicName);
+                    var sender = client.CreateSender(topicName);
 
-                    await sender.SendAsync(new ServiceBusMessage(Encoding.UTF8.GetBytes(message)));
+                    sender.SendAsync(new ServiceBusMessage(Encoding.UTF8.GetBytes(message))).GetAwaiter().GetResult();
                 }
                 catch (Exception)
                 {
@@ -3111,16 +3111,16 @@ namespace Microsoft.Azure.Management.Samples.Common
             }
         }
 
-        public static async Task SendMessageToQueue(string connectionString, string queueName, string message)
+        public static void SendMessageToQueue(string connectionString, string queueName, string message)
         {
             if (!IsRunningMocked)
             {
                 try
                 {
                     ServiceBusClient client = new ServiceBusClient(connectionString);
-                    await using var sender = client.CreateSender(queueName);
+                    var sender = client.CreateSender(queueName);
 
-                    await sender.SendAsync(new ServiceBusMessage(Encoding.UTF8.GetBytes(message)));
+                    sender.SendAsync(new ServiceBusMessage(Encoding.UTF8.GetBytes(message))).GetAwaiter().GetResult();
                 }
                 catch (Exception)
                 {
