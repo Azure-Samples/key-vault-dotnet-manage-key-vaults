@@ -40,8 +40,6 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
-using Azure.Storage.Blobs.Specialized;
-using System.Threading.Tasks;
 
 namespace Microsoft.Azure.Management.Samples.Common
 {
@@ -2774,10 +2772,6 @@ namespace Microsoft.Azure.Management.Samples.Common
             }
             else
             {
-                //File.Copy(
-                //    Path.Combine(Utilities.ProjectPath, "Asset", "SampleTestCertificate.pfx"),
-                //    Path.Combine(Utilities.ProjectPath, "Asset", pfxPath),
-                //    overwrite: true);
             }
         }
 
@@ -2798,10 +2792,6 @@ namespace Microsoft.Azure.Management.Samples.Common
             }
             else
             {
-                //File.Copy(
-                //    Path.Combine(Utilities.ProjectPath, "Asset", "SampleTestCertificate.pfx"),
-                //    Path.Combine(Utilities.ProjectPath, "Asset", pfxName),
-                //    overwrite: true);
             }
         }
 
@@ -2819,22 +2809,22 @@ namespace Microsoft.Azure.Management.Samples.Common
                 }))
                 {
                     var fileinfo = new FileInfo(filePath);
-                    ftpClient.LoginAsync().GetAwaiter().GetResult();
+                    ftpClient.LoginAsync().ConfigureAwait(false);
                     if (!ftpClient.ListDirectoriesAsync().GetAwaiter().GetResult().Any(fni => fni.Name == "site"))
                     {
-                        ftpClient.CreateDirectoryAsync("site").GetAwaiter().GetResult();
+                        ftpClient.CreateDirectoryAsync("site").ConfigureAwait(false);
                     }
-                    ftpClient.ChangeWorkingDirectoryAsync("./site").GetAwaiter().GetResult();
+                    ftpClient.ChangeWorkingDirectoryAsync("./site").ConfigureAwait(false);
                     if (!ftpClient.ListDirectoriesAsync().GetAwaiter().GetResult().Any(fni => fni.Name == "wwwroot"))
                     {
-                        ftpClient.CreateDirectoryAsync("wwwroot").GetAwaiter().GetResult();
+                        ftpClient.CreateDirectoryAsync("wwwroot").ConfigureAwait(false);
                     }
-                    ftpClient.ChangeWorkingDirectoryAsync("./wwwroot").GetAwaiter().GetResult();
+                    ftpClient.ChangeWorkingDirectoryAsync("./wwwroot").ConfigureAwait(false);
                     if (!ftpClient.ListDirectoriesAsync().GetAwaiter().GetResult().Any(fni => fni.Name == "webapps"))
                     {
-                        ftpClient.CreateDirectoryAsync("webapps").GetAwaiter().GetResult();
+                        ftpClient.CreateDirectoryAsync("webapps").ConfigureAwait(false);
                     }
-                    ftpClient.ChangeWorkingDirectoryAsync("./webapps").GetAwaiter().GetResult();
+                    ftpClient.ChangeWorkingDirectoryAsync("./webapps").ConfigureAwait(false);
 
                     if (fileName == null)
                     {
@@ -2844,7 +2834,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                     {
                         int slash = fileName.IndexOf("/");
                         string subDir = fileName.Substring(0, slash);
-                        ftpClient.CreateDirectoryAsync(subDir).GetAwaiter().GetResult();
+                        ftpClient.CreateDirectoryAsync(subDir).ConfigureAwait(false);
                         ftpClient.ChangeWorkingDirectoryAsync("./" + subDir);
                         fileName = fileName.Substring(slash + 1);
                     }
@@ -2852,7 +2842,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                     using (var writeStream = ftpClient.OpenFileWriteStreamAsync(fileName).GetAwaiter().GetResult())
                     {
                         var fileReadStream = fileinfo.OpenRead();
-                        fileReadStream.CopyToAsync(writeStream).GetAwaiter().GetResult();
+                        fileReadStream.CopyToAsync(writeStream).ConfigureAwait(false);
                     }
                 }
             }
@@ -2871,17 +2861,17 @@ namespace Microsoft.Azure.Management.Samples.Common
                 }))
                 {
                     var fileinfo = new FileInfo(filePath);
-                    ftpClient.LoginAsync().GetAwaiter().GetResult();
+                    ftpClient.LoginAsync().ConfigureAwait(false);
                     if (!ftpClient.ListDirectoriesAsync().GetAwaiter().GetResult().Any(fni => fni.Name == "site"))
                     {
-                        ftpClient.CreateDirectoryAsync("site").GetAwaiter().GetResult();
+                        ftpClient.CreateDirectoryAsync("site").ConfigureAwait(false);
                     }
-                    ftpClient.ChangeWorkingDirectoryAsync("./site").GetAwaiter().GetResult();
+                    ftpClient.ChangeWorkingDirectoryAsync("./site").ConfigureAwait(false);
                     if (!ftpClient.ListDirectoriesAsync().GetAwaiter().GetResult().Any(fni => fni.Name == "wwwroot"))
                     {
-                        ftpClient.CreateDirectoryAsync("wwwroot").GetAwaiter().GetResult();
+                        ftpClient.CreateDirectoryAsync("wwwroot").ConfigureAwait(false);
                     }
-                    ftpClient.ChangeWorkingDirectoryAsync("./wwwroot").GetAwaiter().GetResult();
+                    ftpClient.ChangeWorkingDirectoryAsync("./wwwroot").ConfigureAwait(false);
 
                     if (fileName == null)
                     {
@@ -2891,7 +2881,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                     {
                         int slash = fileName.IndexOf("/");
                         string subDir = fileName.Substring(0, slash);
-                        ftpClient.CreateDirectoryAsync(subDir).GetAwaiter().GetResult();
+                        ftpClient.CreateDirectoryAsync(subDir).ConfigureAwait(false);
                         ftpClient.ChangeWorkingDirectoryAsync("./" + subDir);
                         fileName = fileName.Substring(slash + 1);
                     }
@@ -2899,7 +2889,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                     using (var writeStream = ftpClient.OpenFileWriteStreamAsync(fileName).GetAwaiter().GetResult())
                     {
                         var fileReadStream = fileinfo.OpenRead();
-                        fileReadStream.CopyToAsync(writeStream).GetAwaiter().GetResult();
+                        fileReadStream.CopyToAsync(writeStream).ConfigureAwait(false);
                     }
                 }
             }
@@ -2930,15 +2920,15 @@ namespace Microsoft.Azure.Management.Samples.Common
                 // Create a container for organizing blobs within the storage account.
                 Utilities.Log("1. Creating Container");
                 var container = blobServiceClient.GetBlobContainerClient(containerName);
-                container.CreateIfNotExistsAsync().GetAwaiter().GetResult();
+                container.CreateIfNotExists();
 
                 // Set the permissions on the container
-                container.SetAccessPolicyAsync(PublicAccessType.BlobContainer).GetAwaiter().GetResult();
+                container.SetAccessPolicy(PublicAccessType.BlobContainer);
 
                 foreach (var filePath in filePaths)
                 {
                     var blob = container.GetBlobClient(Path.GetFileName(filePath));
-                    blob.UploadAsync(filePath).GetAwaiter().GetResult();
+                    blob.Upload(filePath);
                 }
             }
         }
@@ -2968,7 +2958,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                 // Create a container for organizing blobs within the storage account.
                 Utilities.Log("1. Creating Container");
                 var container = blobServiceClient.GetBlobContainerClient(containerName);
-                container.CreateIfNotExistsAsync().GetAwaiter().GetResult();
+                container.CreateIfNotExists();
             }
         }
 
@@ -3103,7 +3093,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                     ServiceBusClient client = new ServiceBusClient(connectionString);
                     var sender = client.CreateSender(topicName);
 
-                    sender.SendAsync(new ServiceBusMessage(Encoding.UTF8.GetBytes(message))).GetAwaiter().GetResult();
+                    sender.SendAsync(new ServiceBusMessage(Encoding.UTF8.GetBytes(message))).ConfigureAwait(false);
                 }
                 catch (Exception)
                 {
@@ -3120,7 +3110,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                     ServiceBusClient client = new ServiceBusClient(connectionString);
                     var sender = client.CreateSender(queueName);
 
-                    sender.SendAsync(new ServiceBusMessage(Encoding.UTF8.GetBytes(message))).GetAwaiter().GetResult();
+                    sender.SendAsync(new ServiceBusMessage(Encoding.UTF8.GetBytes(message))).ConfigureAwait(false);
                 }
                 catch (Exception)
                 {
