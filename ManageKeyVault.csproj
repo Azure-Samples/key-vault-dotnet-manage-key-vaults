@@ -18,8 +18,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.0.0-preview.2" />
-    <PackageReference Include="Azure.Storage.Blobs" Version="12.4.2" />
+    <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.0.0-preview.6" />
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.5.1" />
     <PackageReference Include="Microsoft.Azure.Management.Fluent" Version="1.30.0" />
     <PackageReference Include="CoreFTP" Version="1.2.0" />
     <PackageReference Include="SSH.NET" Version="2016.0.0" />

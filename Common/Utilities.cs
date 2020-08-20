@@ -3096,7 +3096,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                     ServiceBusClient client = new ServiceBusClient(connectionString);
                     var sender = client.CreateSender(topicName);
 
-                    await sender.SendAsync(new ServiceBusMessage(Encoding.UTF8.GetBytes(message))).ConfigureAwait(false);
+                    await sender.SendMessageAsync(new ServiceBusMessage(Encoding.UTF8.GetBytes(message))).ConfigureAwait(false);
                 }
                 catch (Exception)
                 {
@@ -3113,7 +3113,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                     ServiceBusClient client = new ServiceBusClient(connectionString);
                     var sender = client.CreateSender(queueName);
 
-                    await sender.SendAsync(new ServiceBusMessage(Encoding.UTF8.GetBytes(message))).ConfigureAwait(false);
+                    await sender.SendMessageAsync(new ServiceBusMessage(Encoding.UTF8.GetBytes(message))).ConfigureAwait(false);
                 }
                 catch (Exception)
                 {
