@@ -2796,7 +2796,7 @@ namespace Microsoft.Azure.Management.Samples.Common
             }
         }
 
-        public static async Task UploadFileToWebApp(IPublishingProfile profile, string filePath, string fileName = null)
+        public static async Task UploadFileToWebAppAsync(IPublishingProfile profile, string filePath, string fileName = null)
         {
             if (!IsRunningMocked)
             {
@@ -2810,23 +2810,23 @@ namespace Microsoft.Azure.Management.Samples.Common
                 }))
                 {
                     var fileinfo = new FileInfo(filePath);
-                    await ftpClient.LoginAsync();
-                    var directoryResult = await ftpClient.ListDirectoriesAsync();
+                    await ftpClient.LoginAsync().ConfigureAwait(false);
+                    var directoryResult = await ftpClient.ListDirectoriesAsync().ConfigureAwait(false);
                     if (!directoryResult.Any(fni => fni.Name == "site"))
                     {
-                        await ftpClient.CreateDirectoryAsync("site");
+                        await ftpClient.CreateDirectoryAsync("site").ConfigureAwait(false);
                     }
-                    await ftpClient.ChangeWorkingDirectoryAsync("./site");
+                    await ftpClient.ChangeWorkingDirectoryAsync("./site").ConfigureAwait(false);
                     if (!directoryResult.Any(fni => fni.Name == "wwwroot"))
                     {
-                        await ftpClient.CreateDirectoryAsync("wwwroot");
+                        await ftpClient.CreateDirectoryAsync("wwwroot").ConfigureAwait(false);
                     }
-                    await ftpClient.ChangeWorkingDirectoryAsync("./wwwroot");
+                    await ftpClient.ChangeWorkingDirectoryAsync("./wwwroot").ConfigureAwait(false);
                     if (!directoryResult.Any(fni => fni.Name == "webapps"))
                     {
-                        await ftpClient.CreateDirectoryAsync("webapps");
+                        await ftpClient.CreateDirectoryAsync("webapps").ConfigureAwait(false);
                     }
-                    await ftpClient.ChangeWorkingDirectoryAsync("./webapps");
+                    await ftpClient.ChangeWorkingDirectoryAsync("./webapps").ConfigureAwait(false);
 
                     if (fileName == null)
                     {
@@ -2836,20 +2836,20 @@ namespace Microsoft.Azure.Management.Samples.Common
                     {
                         int slash = fileName.IndexOf("/");
                         string subDir = fileName.Substring(0, slash);
-                        await ftpClient.CreateDirectoryAsync(subDir);
-                        await ftpClient.ChangeWorkingDirectoryAsync("./" + subDir);
+                        await ftpClient.CreateDirectoryAsync(subDir).ConfigureAwait(false);
+                        await ftpClient.ChangeWorkingDirectoryAsync("./" + subDir).ConfigureAwait(false);
                         fileName = fileName.Substring(slash + 1);
                     }
 
-                    using (var writeStream = await ftpClient.OpenFileWriteStreamAsync(fileName))
+                    using (var writeStream = await ftpClient.OpenFileWriteStreamAsync(fileName).ConfigureAwait(false))
                     {
                         var fileReadStream = fileinfo.OpenRead();
-                        await fileReadStream.CopyToAsync(writeStream);
+                        await fileReadStream.CopyToAsync(writeStream).ConfigureAwait(false);
                     }
                 }
             }
         }
-        public static async Task UploadFileToFunctionApp(IPublishingProfile profile, string filePath, string fileName = null)
+        public static async Task UploadFileToFunctionAppAsync(IPublishingProfile profile, string filePath, string fileName = null)
         {
             if (!IsRunningMocked)
             {
@@ -2863,18 +2863,18 @@ namespace Microsoft.Azure.Management.Samples.Common
                 }))
                 {
                     var fileinfo = new FileInfo(filePath);
-                    await ftpClient.LoginAsync();
-                    var directoryResult = await ftpClient.ListDirectoriesAsync();
+                    await ftpClient.LoginAsync().ConfigureAwait(false);
+                    var directoryResult = await ftpClient.ListDirectoriesAsync().ConfigureAwait(false);
                     if (!directoryResult.Any(fni => fni.Name == "site"))
                     {
-                        await ftpClient.CreateDirectoryAsync("site");
+                        await ftpClient.CreateDirectoryAsync("site").ConfigureAwait(false);
                     }
-                    await ftpClient.ChangeWorkingDirectoryAsync("./site");
+                    await ftpClient.ChangeWorkingDirectoryAsync("./site").ConfigureAwait(false);
                     if (!directoryResult.Any(fni => fni.Name == "wwwroot"))
                     {
-                        await ftpClient.CreateDirectoryAsync("wwwroot");
+                        await ftpClient.CreateDirectoryAsync("wwwroot").ConfigureAwait(false);
                     }
-                    await ftpClient.ChangeWorkingDirectoryAsync("./wwwroot");
+                    await ftpClient.ChangeWorkingDirectoryAsync("./wwwroot").ConfigureAwait(false);
 
                     if (fileName == null)
                     {
@@ -2884,21 +2884,21 @@ namespace Microsoft.Azure.Management.Samples.Common
                     {
                         int slash = fileName.IndexOf("/");
                         string subDir = fileName.Substring(0, slash);
-                        await ftpClient.CreateDirectoryAsync(subDir);
-                        await ftpClient.ChangeWorkingDirectoryAsync("./" + subDir);
+                        await ftpClient.CreateDirectoryAsync(subDir).ConfigureAwait(false);
+                        await ftpClient.ChangeWorkingDirectoryAsync("./" + subDir).ConfigureAwait(false);
                         fileName = fileName.Substring(slash + 1);
                     }
 
-                    using (var writeStream = await ftpClient.OpenFileWriteStreamAsync(fileName))
+                    using (var writeStream = await ftpClient.OpenFileWriteStreamAsync(fileName).ConfigureAwait(false))
                     {
                         var fileReadStream = fileinfo.OpenRead();
-                        await fileReadStream.CopyToAsync(writeStream);
+                        await fileReadStream.CopyToAsync(writeStream).ConfigureAwait(false);
                     }
                 }
             }
         }
 
-        public static async Task UploadFilesToContainer(string connectionString, string containerName, params string[] filePaths)
+        public static async Task UploadFilesToContainerAsync(string connectionString, string containerName, params string[] filePaths)
         {
             if (!IsRunningMocked)
             {
@@ -2923,20 +2923,20 @@ namespace Microsoft.Azure.Management.Samples.Common
                 // Create a container for organizing blobs within the storage account.
                 Utilities.Log("1. Creating Container");
                 var container = blobServiceClient.GetBlobContainerClient(containerName);
-                await container.CreateIfNotExistsAsync();
+                await container.CreateIfNotExistsAsync().ConfigureAwait(false);
 
                 // Set the permissions on the container
-                await container.SetAccessPolicyAsync(PublicAccessType.BlobContainer);
+                await container.SetAccessPolicyAsync(PublicAccessType.BlobContainer).ConfigureAwait(false);
 
                 foreach (var filePath in filePaths)
                 {
                     var blob = container.GetBlobClient(Path.GetFileName(filePath));
-                    await blob.UploadAsync(filePath);
+                    await blob.UploadAsync(filePath).ConfigureAwait(false);
                 }
             }
         }
 
-        public static async Task CreateContainer(string connectionString, string containerName)
+        public static async Task CreateContainerAsync(string connectionString, string containerName)
         {
             if (!IsRunningMocked)
             {
@@ -2961,7 +2961,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                 // Create a container for organizing blobs within the storage account.
                 Utilities.Log("1. Creating Container");
                 var container = blobServiceClient.GetBlobContainerClient(containerName);
-                await container.CreateIfNotExistsAsync();
+                await container.CreateIfNotExistsAsync().ConfigureAwait(false);
             }
         }
 
@@ -3087,7 +3087,7 @@ namespace Microsoft.Azure.Management.Samples.Common
             return Path.Combine(Utilities.ProjectPath, "Asset", certificateName);
         }
 
-        public static async Task SendMessageToTopic(string connectionString, string topicName, string message)
+        public static async Task SendMessageToTopicAsync(string connectionString, string topicName, string message)
         {
             if (!IsRunningMocked)
             {
@@ -3096,7 +3096,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                     ServiceBusClient client = new ServiceBusClient(connectionString);
                     var sender = client.CreateSender(topicName);
 
-                    await sender.SendAsync(new ServiceBusMessage(Encoding.UTF8.GetBytes(message)));
+                    await sender.SendAsync(new ServiceBusMessage(Encoding.UTF8.GetBytes(message))).ConfigureAwait(false);
                 }
                 catch (Exception)
                 {
@@ -3104,7 +3104,7 @@ namespace Microsoft.Azure.Management.Samples.Common
             }
         }
 
-        public static async Task SendMessageToQueue(string connectionString, string queueName, string message)
+        public static async Task SendMessageToQueueAsync(string connectionString, string queueName, string message)
         {
             if (!IsRunningMocked)
             {
@@ -3113,7 +3113,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                     ServiceBusClient client = new ServiceBusClient(connectionString);
                     var sender = client.CreateSender(queueName);
 
-                    await sender.SendAsync(new ServiceBusMessage(Encoding.UTF8.GetBytes(message)));
+                    await sender.SendAsync(new ServiceBusMessage(Encoding.UTF8.GetBytes(message))).ConfigureAwait(false);
                 }
                 catch (Exception)
                 {
