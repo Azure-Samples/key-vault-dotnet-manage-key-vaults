@@ -1,53 +1,46 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See License.txt in the project root for license information.
 
+using CoreFtp;
 using Microsoft.Azure.Management.AppService.Fluent;
 using Microsoft.Azure.Management.AppService.Fluent.Models;
-using Microsoft.Azure.Management.Compute.Fluent;
-using Microsoft.Azure.Management.ContainerRegistry.Fluent;
-using Microsoft.Azure.Management.ContainerRegistry.Fluent.Models;
-using Microsoft.Azure.Management.ContainerService.Fluent;
-using Microsoft.Azure.Management.ContainerService.Fluent.Models;
-using Microsoft.Azure.Management.KeyVault.Fluent;
-using Microsoft.Azure.Management.Network.Fluent;
-using Microsoft.Azure.Management.Redis.Fluent;
-using Microsoft.Azure.Management.Storage.Fluent;
-using Microsoft.Azure.Management.Storage.Fluent.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using Microsoft.Azure.Management.Sql.Fluent;
-using Microsoft.Azure.Management.TrafficManager.Fluent;
-using Microsoft.Azure.Management.Dns.Fluent;
-using Microsoft.Azure.Management.ResourceManager.Fluent;
-using System.Diagnostics;
-using System.IO;
-using Newtonsoft.Json.Linq;
-using System.Net.Http;
-using CoreFtp;
-using Microsoft.WindowsAzure.Storage.Blob;
-using Microsoft.WindowsAzure.Storage;
-using Renci.SshNet;
-using Microsoft.Azure.Management.Search.Fluent;
-using Microsoft.Azure.Management.Search.Fluent.Models;
-using Microsoft.Azure.Management.ServiceBus.Fluent;
-using Microsoft.Azure.ServiceBus;
-using System.Threading;
-using System.Net.Http.Headers;
 using Microsoft.Azure.Management.BatchAI.Fluent;
+using Microsoft.Azure.Management.Compute.Fluent;
+using Microsoft.Azure.Management.ContainerInstance.Fluent;
+using Microsoft.Azure.Management.ContainerRegistry.Fluent;
 using Microsoft.Azure.Management.CosmosDB.Fluent;
 using Microsoft.Azure.Management.CosmosDB.Fluent.Models;
-using Microsoft.Azure.Management.Compute.Fluent.Models;
-using Microsoft.Azure.Management.Graph.RBAC.Fluent;
-using Microsoft.Azure.Management.Graph.RBAC.Fluent.Models;
-using Microsoft.Azure.Management.Network.Fluent.Models;
-using Microsoft.Azure.Management.ContainerInstance.Fluent;
-using Microsoft.Azure.Management.Locks.Fluent;
-using Microsoft.Azure.Management.Msi.Fluent;
+using Microsoft.Azure.Management.Dns.Fluent;
 using Microsoft.Azure.Management.Eventhub.Fluent;
+using Microsoft.Azure.Management.Graph.RBAC.Fluent;
+using Microsoft.Azure.Management.KeyVault.Fluent;
+using Microsoft.Azure.Management.Locks.Fluent;
 using Microsoft.Azure.Management.Monitor.Fluent;
+using Microsoft.Azure.Management.Msi.Fluent;
+using Microsoft.Azure.Management.Network.Fluent;
+using Microsoft.Azure.Management.Network.Fluent.Models;
 using Microsoft.Azure.Management.PrivateDns.Fluent;
+using Microsoft.Azure.Management.Redis.Fluent;
+using Microsoft.Azure.Management.ResourceManager.Fluent;
+using Microsoft.Azure.Management.Search.Fluent;
+using Microsoft.Azure.Management.ServiceBus.Fluent;
+using Microsoft.Azure.Management.Sql.Fluent;
+using Microsoft.Azure.Management.Storage.Fluent;
+using Microsoft.Azure.Management.Storage.Fluent.Models;
+using Microsoft.Azure.Management.TrafficManager.Fluent;
+using Azure.Messaging.ServiceBus;
+using Azure.Storage.Blobs.Models;
+using Azure.Storage.Blobs;
+using Newtonsoft.Json.Linq;
+using Renci.SshNet;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace Microsoft.Azure.Management.Samples.Common
 {
@@ -278,7 +271,7 @@ namespace Microsoft.Azure.Management.Samples.Common
                         .Append(" [").Append(address.IpAddress).Append("]");
                 }
 
-                
+
                 info
                     // Show SSL cert
                     .Append("\n\t\t\tSSL certificate name: ").Append(rule.SslCertificate?.Name ?? "(none)")
@@ -2610,7 +2603,7 @@ namespace Microsoft.Azure.Management.Samples.Common
             if (actionGroup.AzureFunctionReceivers != null && actionGroup.AzureFunctionReceivers.Any())
             {
                 info.Append("\n\tAzure Functions receivers: ");
-                foreach(var er in actionGroup.AzureFunctionReceivers)
+                foreach (var er in actionGroup.AzureFunctionReceivers)
                 {
                     info.Append("\n\t\tName: ").Append(er.Name);
                     info.Append("\n\t\tFunction Name: ").Append(er.FunctionName);
@@ -2635,7 +2628,7 @@ namespace Microsoft.Azure.Management.Samples.Common
             if (actionGroup.ItsmReceivers != null && actionGroup.ItsmReceivers.Any())
             {
                 info.Append("\n\tITSM receivers: ");
-                foreach(var er in actionGroup.ItsmReceivers)
+                foreach (var er in actionGroup.ItsmReceivers)
                 {
                     info.Append("\n\t\tName: ").Append(er.Name);
                     info.Append("\n\t\tWorkspace Id: ").Append(er.WorkspaceId);
@@ -2674,7 +2667,7 @@ namespace Microsoft.Azure.Management.Samples.Common
             if (activityLogAlert.ActionGroupIds != null && activityLogAlert.ActionGroupIds.Any())
             {
                 info.Append("\n\tAction Groups: ");
-                foreach(var er in activityLogAlert.ActionGroupIds)
+                foreach (var er in activityLogAlert.ActionGroupIds)
                 {
                     info.Append("\n\t\tAction Group Id: ").Append(er);
                 }
@@ -2780,10 +2773,6 @@ namespace Microsoft.Azure.Management.Samples.Common
             }
             else
             {
-                //File.Copy(
-                //    Path.Combine(Utilities.ProjectPath, "Asset", "SampleTestCertificate.pfx"),
-                //    Path.Combine(Utilities.ProjectPath, "Asset", pfxPath),
-                //    overwrite: true);
             }
         }
 
@@ -2804,14 +2793,10 @@ namespace Microsoft.Azure.Management.Samples.Common
             }
             else
             {
-                //File.Copy(
-                //    Path.Combine(Utilities.ProjectPath, "Asset", "SampleTestCertificate.pfx"),
-                //    Path.Combine(Utilities.ProjectPath, "Asset", pfxName),
-                //    overwrite: true);
             }
         }
 
-        public static void UploadFileToWebApp(IPublishingProfile profile, string filePath, string fileName = null)
+        public static async Task UploadFileToWebAppAsync(IPublishingProfile profile, string filePath, string fileName = null)
         {
             if (!IsRunningMocked)
             {
@@ -2825,22 +2810,23 @@ namespace Microsoft.Azure.Management.Samples.Common
                 }))
                 {
                     var fileinfo = new FileInfo(filePath);
-                    ftpClient.LoginAsync().GetAwaiter().GetResult();
-                    if (!ftpClient.ListDirectoriesAsync().GetAwaiter().GetResult().Any(fni => fni.Name == "site"))
+                    await ftpClient.LoginAsync().ConfigureAwait(false);
+                    var directoryResult = await ftpClient.ListDirectoriesAsync().ConfigureAwait(false);
+                    if (!directoryResult.Any(fni => fni.Name == "site"))
                     {
-                        ftpClient.CreateDirectoryAsync("site").GetAwaiter().GetResult();
+                        await ftpClient.CreateDirectoryAsync("site").ConfigureAwait(false);
                     }
-                    ftpClient.ChangeWorkingDirectoryAsync("./site").GetAwaiter().GetResult();
-                    if (!ftpClient.ListDirectoriesAsync().GetAwaiter().GetResult().Any(fni => fni.Name == "wwwroot"))
+                    await ftpClient.ChangeWorkingDirectoryAsync("./site").ConfigureAwait(false);
+                    if (!directoryResult.Any(fni => fni.Name == "wwwroot"))
                     {
-                        ftpClient.CreateDirectoryAsync("wwwroot").GetAwaiter().GetResult();
+                        await ftpClient.CreateDirectoryAsync("wwwroot").ConfigureAwait(false);
                     }
-                    ftpClient.ChangeWorkingDirectoryAsync("./wwwroot").GetAwaiter().GetResult();
-                    if (!ftpClient.ListDirectoriesAsync().GetAwaiter().GetResult().Any(fni => fni.Name == "webapps"))
+                    await ftpClient.ChangeWorkingDirectoryAsync("./wwwroot").ConfigureAwait(false);
+                    if (!directoryResult.Any(fni => fni.Name == "webapps"))
                     {
-                        ftpClient.CreateDirectoryAsync("webapps").GetAwaiter().GetResult();
+                        await ftpClient.CreateDirectoryAsync("webapps").ConfigureAwait(false);
                     }
-                    ftpClient.ChangeWorkingDirectoryAsync("./webapps").GetAwaiter().GetResult();
+                    await ftpClient.ChangeWorkingDirectoryAsync("./webapps").ConfigureAwait(false);
 
                     if (fileName == null)
                     {
@@ -2850,20 +2836,20 @@ namespace Microsoft.Azure.Management.Samples.Common
                     {
                         int slash = fileName.IndexOf("/");
                         string subDir = fileName.Substring(0, slash);
-                        ftpClient.CreateDirectoryAsync(subDir).GetAwaiter().GetResult();
-                        ftpClient.ChangeWorkingDirectoryAsync("./" + subDir);
+                        await ftpClient.CreateDirectoryAsync(subDir).ConfigureAwait(false);
+                        await ftpClient.ChangeWorkingDirectoryAsync("./" + subDir).ConfigureAwait(false);
                         fileName = fileName.Substring(slash + 1);
                     }
 
-                    using (var writeStream = ftpClient.OpenFileWriteStreamAsync(fileName).GetAwaiter().GetResult())
+                    using (var writeStream = await ftpClient.OpenFileWriteStreamAsync(fileName).ConfigureAwait(false))
                     {
                         var fileReadStream = fileinfo.OpenRead();
-                        fileReadStream.CopyToAsync(writeStream).GetAwaiter().GetResult();
+                        await fileReadStream.CopyToAsync(writeStream).ConfigureAwait(false);
                     }
                 }
             }
         }
-        public static void UploadFileToFunctionApp(IPublishingProfile profile, string filePath, string fileName = null)
+        public static async Task UploadFileToFunctionAppAsync(IPublishingProfile profile, string filePath, string fileName = null)
         {
             if (!IsRunningMocked)
             {
@@ -2877,17 +2863,18 @@ namespace Microsoft.Azure.Management.Samples.Common
                 }))
                 {
                     var fileinfo = new FileInfo(filePath);
-                    ftpClient.LoginAsync().GetAwaiter().GetResult();
-                    if (!ftpClient.ListDirectoriesAsync().GetAwaiter().GetResult().Any(fni => fni.Name == "site"))
+                    await ftpClient.LoginAsync().ConfigureAwait(false);
+                    var directoryResult = await ftpClient.ListDirectoriesAsync().ConfigureAwait(false);
+                    if (!directoryResult.Any(fni => fni.Name == "site"))
                     {
-                        ftpClient.CreateDirectoryAsync("site").GetAwaiter().GetResult();
+                        await ftpClient.CreateDirectoryAsync("site").ConfigureAwait(false);
                     }
-                    ftpClient.ChangeWorkingDirectoryAsync("./site").GetAwaiter().GetResult();
-                    if (!ftpClient.ListDirectoriesAsync().GetAwaiter().GetResult().Any(fni => fni.Name == "wwwroot"))
+                    await ftpClient.ChangeWorkingDirectoryAsync("./site").ConfigureAwait(false);
+                    if (!directoryResult.Any(fni => fni.Name == "wwwroot"))
                     {
-                        ftpClient.CreateDirectoryAsync("wwwroot").GetAwaiter().GetResult();
+                        await ftpClient.CreateDirectoryAsync("wwwroot").ConfigureAwait(false);
                     }
-                    ftpClient.ChangeWorkingDirectoryAsync("./wwwroot").GetAwaiter().GetResult();
+                    await ftpClient.ChangeWorkingDirectoryAsync("./wwwroot").ConfigureAwait(false);
 
                     if (fileName == null)
                     {
@@ -2897,29 +2884,28 @@ namespace Microsoft.Azure.Management.Samples.Common
                     {
                         int slash = fileName.IndexOf("/");
                         string subDir = fileName.Substring(0, slash);
-                        ftpClient.CreateDirectoryAsync(subDir).GetAwaiter().GetResult();
-                        ftpClient.ChangeWorkingDirectoryAsync("./" + subDir);
+                        await ftpClient.CreateDirectoryAsync(subDir).ConfigureAwait(false);
+                        await ftpClient.ChangeWorkingDirectoryAsync("./" + subDir).ConfigureAwait(false);
                         fileName = fileName.Substring(slash + 1);
                     }
 
-                    using (var writeStream = ftpClient.OpenFileWriteStreamAsync(fileName).GetAwaiter().GetResult())
+                    using (var writeStream = await ftpClient.OpenFileWriteStreamAsync(fileName).ConfigureAwait(false))
                     {
                         var fileReadStream = fileinfo.OpenRead();
-                        fileReadStream.CopyToAsync(writeStream).GetAwaiter().GetResult();
+                        await fileReadStream.CopyToAsync(writeStream).ConfigureAwait(false);
                     }
                 }
             }
         }
 
-        public static void UploadFilesToContainer(string connectionString, string containerName, params string[] filePaths)
+        public static async Task UploadFilesToContainerAsync(string connectionString, string containerName, params string[] filePaths)
         {
             if (!IsRunningMocked)
             {
-                CloudStorageAccount storageAccount;
-
+                BlobServiceClient blobServiceClient;
                 try
                 {
-                    storageAccount = CloudStorageAccount.Parse(connectionString);
+                    blobServiceClient = new BlobServiceClient(connectionString);
                 }
                 catch (FormatException)
                 {
@@ -2933,37 +2919,31 @@ namespace Microsoft.Azure.Management.Samples.Common
                     Utilities.ReadLine();
                     throw;
                 }
-
-                // Create a blob client for interacting with the blob service.
-                var blobClient = storageAccount.CreateCloudBlobClient();
 
                 // Create a container for organizing blobs within the storage account.
                 Utilities.Log("1. Creating Container");
-                var container = blobClient.GetContainerReference(containerName);
-                container.CreateIfNotExistsAsync().GetAwaiter().GetResult();
+                var container = blobServiceClient.GetBlobContainerClient(containerName);
+                await container.CreateIfNotExistsAsync().ConfigureAwait(false);
 
-                var containerPermissions = new BlobContainerPermissions();
-                // Include public access in the permissions object
-                containerPermissions.PublicAccess = BlobContainerPublicAccessType.Container;
                 // Set the permissions on the container
-                container.SetPermissionsAsync(containerPermissions).GetAwaiter().GetResult();
+                await container.SetAccessPolicyAsync(PublicAccessType.BlobContainer).ConfigureAwait(false);
 
                 foreach (var filePath in filePaths)
                 {
-                    var blob = container.GetBlockBlobReference(Path.GetFileName(filePath));
-                    blob.UploadFromFileAsync(filePath).GetAwaiter().GetResult();
+                    var blob = container.GetBlobClient(Path.GetFileName(filePath));
+                    await blob.UploadAsync(filePath).ConfigureAwait(false);
                 }
             }
         }
 
-        public static void CreateContainer(string connectionString, string containerName)
+        public static async Task CreateContainerAsync(string connectionString, string containerName)
         {
             if (!IsRunningMocked)
             {
-                CloudStorageAccount storageAccount;
+                BlobServiceClient blobServiceClient;
                 try
                 {
-                    storageAccount = CloudStorageAccount.Parse(connectionString);
+                    blobServiceClient = new BlobServiceClient(connectionString);
                 }
                 catch (FormatException)
                 {
@@ -2977,12 +2957,11 @@ namespace Microsoft.Azure.Management.Samples.Common
                     Utilities.ReadLine();
                     throw;
                 }
-                // Create a blob client for interacting with the blob service.
-                var blobClient = storageAccount.CreateCloudBlobClient();
+
                 // Create a container for organizing blobs within the storage account.
-                Utilities.Log("Creating Container");
-                var container = blobClient.GetContainerReference(containerName);
-                container.CreateIfNotExistsAsync().GetAwaiter().GetResult();
+                Utilities.Log("1. Creating Container");
+                var container = blobServiceClient.GetBlobContainerClient(containerName);
+                await container.CreateIfNotExistsAsync().ConfigureAwait(false);
             }
         }
 
@@ -3108,15 +3087,16 @@ namespace Microsoft.Azure.Management.Samples.Common
             return Path.Combine(Utilities.ProjectPath, "Asset", certificateName);
         }
 
-        public static void SendMessageToTopic(string connectionString, string topicName, string message)
+        public static async Task SendMessageToTopicAsync(string connectionString, string topicName, string message)
         {
             if (!IsRunningMocked)
             {
                 try
                 {
-                    var topicClient = new TopicClient(connectionString, topicName);
-                    topicClient.SendAsync(new Message(Encoding.UTF8.GetBytes(message))).Wait();
-                    topicClient.Close();
+                    ServiceBusClient client = new ServiceBusClient(connectionString);
+                    var sender = client.CreateSender(topicName);
+
+                    await sender.SendMessageAsync(new ServiceBusMessage(Encoding.UTF8.GetBytes(message))).ConfigureAwait(false);
                 }
                 catch (Exception)
                 {
@@ -3124,15 +3104,16 @@ namespace Microsoft.Azure.Management.Samples.Common
             }
         }
 
-        public static void SendMessageToQueue(string connectionString, string queueName, string message)
+        public static async Task SendMessageToQueueAsync(string connectionString, string queueName, string message)
         {
             if (!IsRunningMocked)
             {
                 try
                 {
-                    var queueClient = new QueueClient(connectionString, queueName, ReceiveMode.PeekLock);
-                    queueClient.SendAsync(new Message(Encoding.UTF8.GetBytes(message))).Wait();
-                    queueClient.Close();
+                    ServiceBusClient client = new ServiceBusClient(connectionString);
+                    var sender = client.CreateSender(queueName);
+
+                    await sender.SendMessageAsync(new ServiceBusMessage(Encoding.UTF8.GetBytes(message))).ConfigureAwait(false);
                 }
                 catch (Exception)
                 {
