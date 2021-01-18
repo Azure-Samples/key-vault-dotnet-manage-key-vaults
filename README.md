@@ -5,8 +5,8 @@ languages:
 products:
 - azure
 extensions:
-- services: Key-Vault
-- platforms: dotnet
+  services: Key-Vault
+  platforms: dotnet
 ---
 
 # Getting started on managing key vaults in C# #
