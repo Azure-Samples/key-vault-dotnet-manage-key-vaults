@@ -39,16 +39,16 @@ namespace ManageKeyVault
                 SubscriptionResource subscription = await client.GetDefaultSubscriptionAsync();
 
                 // Create a resource group in the EastUS region
-                string rgName = Utilities.CreateRandomName("KeyVaultRG");
+                var rgName = Utilities.CreateRandomName("KeyVaultRG");
                 Utilities.Log($"creating resource group with name:{rgName}");
-                ArmOperation<ResourceGroupResource> rgLro = await subscription.GetResourceGroups().CreateOrUpdateAsync(WaitUntil.Completed, rgName, new ResourceGroupData(AzureLocation.EastUS));
-                ResourceGroupResource resourceGroup = rgLro.Value;
+                var rgLro = await subscription.GetResourceGroups().CreateOrUpdateAsync(WaitUntil.Completed, rgName, new ResourceGroupData(AzureLocation.EastUS));
+                var resourceGroup = rgLro.Value;
                 _resourceGroupId = resourceGroup.Id;
                 Utilities.Log("Created a resource group with name: " + resourceGroup.Data.Name);
 
                 //Create a KeyVault
                 Utilities.Log("Creating a KeyVault...");
-                string vaultName1 = Utilities.CreateRandomName("vault1");
+                var vaultName1 = Utilities.CreateRandomName("vault1");
                 var tenantId = Environment.GetEnvironmentVariable("TENANT_ID");
                 var skuName = KeyVaultSkuName.Premium;
                 var sku = new KeyVaultSku(KeyVaultSkuFamily.A, skuName);
@@ -61,14 +61,14 @@ namespace ManageKeyVault
                 // Create or update a key vault using the parameters
                 var keyVaultLro = await collection.CreateOrUpdateAsync(WaitUntil.Completed, vaultName1, content);
                 var keyVault = keyVaultLro.Value;
-                Utilities.Log("Created key vault");
+                Utilities.Log("Created a KeyVault with name:" + keyVault.Data.Name);
 
                 //============================================================
 
                 // Authorize an application
                 Utilities.Log("Authorizing the application associated with the current service principal...");
                 var operationKind = AccessPolicyUpdateKind.Add;
-                var objectId = "7bee3764-dbea-4729-9c33-446f321aa721";
+                var objectId = Environment.GetEnvironmentVariable("OBJECT_ID");
                 var permissions = new IdentityAccessPermissions()
                 {
                     Keys = 
@@ -82,13 +82,13 @@ namespace ManageKeyVault
                     }
                 };
                 var policy = new KeyVaultAccessPolicy(Guid.Parse(tenantId), objectId, permissions);
-                List<KeyVaultAccessPolicy> accessPolicies = new List<KeyVaultAccessPolicy>();
+                var accessPolicies = new List<KeyVaultAccessPolicy>();
                 accessPolicies.Add(policy);
                 var AccessPolicyPropertie = new KeyVaultAccessPolicyProperties(accessPolicies);
                 var keyVaultAccessPolicyParameters = new KeyVaultAccessPolicyParameters(AccessPolicyPropertie);
-                var updateAccessPolicyResponse = await keyVault.UpdateAccessPolicyAsync(operationKind, keyVaultAccessPolicyParameters);
-                var updateAccessPolicy = updateAccessPolicyResponse.Value;
-                
+                _ = await keyVault.UpdateAccessPolicyAsync(operationKind, keyVaultAccessPolicyParameters);
+                Utilities.Log("Authorized the application associated with the current service principal...");
+
                 //============================================================
 
                 // Update a key vault
@@ -116,19 +116,18 @@ namespace ManageKeyVault
                         PublicNetworkAccess = "enabled"
                     }
                 };
-                var updateResponse = await keyVault.UpdateAsync(patch);
-                var updateKeyVault = updateResponse.Value;
-                Utilities.Log("Updated KeyVault");
+                _ = await keyVault.UpdateAsync(patch);
+                Utilities.Log("Updated a KeyVault with name:" + keyVault.Data.Name);
 
                 //============================================================
 
                 // Create another key vault
-                string vaultName2 = Utilities.CreateRandomName("vault2");
+                var vaultName2 = Utilities.CreateRandomName("vault2");
                 var properties2 = new KeyVaultProperties(Guid.Parse(tenantId), sku);
                 var content2 = new KeyVaultCreateOrUpdateContent(AzureLocation.EastUS, properties2);
                 var keyVaultLro2 = await collection.CreateOrUpdateAsync(WaitUntil.Completed, vaultName2, content2);
                 var keyVault2 = keyVaultLro2.Value;
-                Utilities.Log("Created another key vault");
+                Utilities.Log("Created another key vault with name:" + keyVault2.Data.Name);
 
                 // Define Access Policy
                 var operationKind2 = AccessPolicyUpdateKind.Add;
@@ -145,12 +144,11 @@ namespace ManageKeyVault
                     }
                 };
                 var policy2 = new KeyVaultAccessPolicy(Guid.Parse(tenantId), objectId, permissions2);
-                List<KeyVaultAccessPolicy> accessPolicies2 = new List<KeyVaultAccessPolicy>();
+                var accessPolicies2 = new List<KeyVaultAccessPolicy>();
                 accessPolicies.Add(policy2);
                 var accessPolicyProperties2 = new KeyVaultAccessPolicyProperties(accessPolicies2);
                 var keyVaultAccessPolicyParameters2 = new KeyVaultAccessPolicyParameters(accessPolicyProperties2);
-                var updateResponse2 = await keyVault2.UpdateAccessPolicyAsync(operationKind2, keyVaultAccessPolicyParameters2);
-                var updateKeyVault2 = updateResponse2.Value;
+                _ = await keyVault2.UpdateAccessPolicyAsync(operationKind2, keyVaultAccessPolicyParameters2);
                 Utilities.Log("Defined Access Policy");
 
                 //============================================================
@@ -161,8 +159,9 @@ namespace ManageKeyVault
                 await foreach (var item in collection.GetAllAsync())
                 {
                     listByResourceGroup.Add(item);
+                    Utilities.Log("KeyVaultName:" + item.Data.Name);
                 }
-                Utilities.Log("Listed key vaults...");
+                Utilities.Log("Listed key vaults"); 
 
                 //============================================================
 
