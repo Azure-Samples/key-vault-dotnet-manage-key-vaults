@@ -1,13 +1,14 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See License.txt in the project root for license information.
 
-using Microsoft.Azure.Management.Fluent;
-using Microsoft.Azure.Management.KeyVault.Fluent.Models;
-using Microsoft.Azure.Management.ResourceManager.Fluent;
-using Microsoft.Azure.Management.ResourceManager.Fluent.Authentication;
-using Microsoft.Azure.Management.ResourceManager.Fluent.Core;
-using Microsoft.Azure.Management.Samples.Common;
-using System;
+using Azure;
+using Azure.Core;
+using Azure.Identity;
+using Azure.ResourceManager;
+using Azure.ResourceManager.KeyVault;
+using Azure.ResourceManager.KeyVault.Models;
+using Azure.ResourceManager.Resources;
+using Azure.ResourceManager.Samples.Common;
 
 namespace ManageKeyVault
 {
@@ -24,106 +25,162 @@ namespace ManageKeyVault
          *  - List key vaults
          *  - Delete a key vault.
          */
-        public static void RunSample(IAzure azure)
+        private static ResourceIdentifier? _resourceGroupId = null;
+        private const int _maxStalenessPrefix = 100000;
+        private const int _maxIntervalInSeconds = 300;
+
+        public static async Task RunSample(ArmClient client)
         {
-            string vaultName1 = SdkContext.RandomResourceName("vault1", 20);
-            string vaultName2 = SdkContext.RandomResourceName("vault2", 20);
-            string rgName = SdkContext.RandomResourceName("rgNEMV", 24);
             try
             {
                 //============================================================
-                // Create a key vault with empty access policy
 
-                Utilities.Log("Creating a key vault...");
+                // Get default subscription
+                SubscriptionResource subscription = await client.GetDefaultSubscriptionAsync();
 
-                var vault1 = azure.Vaults
-                        .Define(vaultName1)
-                        .WithRegion(Region.USWest)
-                        .WithNewResourceGroup(rgName)
-                        .WithEmptyAccessPolicy()
-                        .Create();
+                // Create a resource group in the EastUS region
+                var rgName = Utilities.CreateRandomName("KeyVaultRG");
+                Utilities.Log($"creating resource group with name:{rgName}");
+                var rgLro = await subscription.GetResourceGroups().CreateOrUpdateAsync(WaitUntil.Completed, rgName, new ResourceGroupData(AzureLocation.EastUS));
+                var resourceGroup = rgLro.Value;
+                _resourceGroupId = resourceGroup.Id;
+                Utilities.Log("Created a resource group with name: " + resourceGroup.Data.Name);
 
-                Utilities.Log("Created key vault");
-                Utilities.PrintVault(vault1);
+                //Create a KeyVault
+                Utilities.Log("Creating a KeyVault...");
+                var vaultName1 = Utilities.CreateRandomName("vault1");
+                var tenantId = Environment.GetEnvironmentVariable("TENANT_ID");
+                var skuName = KeyVaultSkuName.Premium;
+                var sku = new KeyVaultSku(KeyVaultSkuFamily.A, skuName);
+                var properties = new KeyVaultProperties(Guid.Parse(tenantId), sku);
+                var content = new KeyVaultCreateOrUpdateContent(AzureLocation.WestUS, properties);
+
+                // Get the key vaults collection in the resource group
+                var collection = resourceGroup.GetKeyVaults();
+
+                // Create or update a key vault using the parameters
+                var keyVaultLro = await collection.CreateOrUpdateAsync(WaitUntil.Completed, vaultName1, content);
+                var keyVault = keyVaultLro.Value;
+                Utilities.Log("Created a KeyVault with name:" + keyVault.Data.Name);
 
                 //============================================================
+
                 // Authorize an application
-
                 Utilities.Log("Authorizing the application associated with the current service principal...");
-
-                vault1 = vault1.Update()
-                        .DefineAccessPolicy()
-                            .ForServicePrincipal(SdkContext.AzureCredentialsFactory.FromFile(Environment.GetEnvironmentVariable("AZURE_AUTH_LOCATION")).ClientId)
-                            .AllowKeyAllPermissions()
-                            .AllowSecretPermissions(SecretPermissions.Get)
-                            .AllowSecretPermissions(SecretPermissions.List)
-                            .Attach()
-                        .Apply();
-
-                Utilities.Log("Updated key vault");
-                Utilities.PrintVault(vault1);
-
-                //============================================================
-                // Update a key vault
-
-                Utilities.Log("Update a key vault to enable deployments and add permissions to the application...");
-
-                vault1 = vault1.Update()
-                        .WithDeploymentEnabled()
-                        .WithTemplateDeploymentEnabled()
-                        .UpdateAccessPolicy(vault1.AccessPolicies[0].ObjectId)
-                            .AllowSecretAllPermissions()
-                            .Parent()
-                        .Apply();
-
-                Utilities.Log("Updated key vault");
-                // Print the network security group
-                Utilities.PrintVault(vault1);
-
-                //============================================================
-                // Create another key vault
-
-                var vault2 = azure.Vaults
-                        .Define(vaultName2)
-                        .WithRegion(Region.USEast)
-                        .WithExistingResourceGroup(rgName)
-                        .DefineAccessPolicy()
-                            .ForServicePrincipal(SdkContext.AzureCredentialsFactory.FromFile(Environment.GetEnvironmentVariable("AZURE_AUTH_LOCATION")).ClientId)
-                            .AllowKeyPermissions(KeyPermissions.List)
-                            .AllowKeyPermissions(KeyPermissions.Get)
-                            .AllowKeyPermissions(KeyPermissions.Decrypt)
-                            .AllowSecretPermissions(SecretPermissions.Get)
-                            .Attach()
-                        .Create();
-
-                Utilities.Log("Created key vault");
-                // Print the network security group
-                Utilities.PrintVault(vault2);
-
-                //============================================================
-                // List key vaults
-
-                Utilities.Log("Listing key vaults...");
-
-                foreach (var vault in azure.Vaults.ListByResourceGroup(rgName))
+                var operationKind = AccessPolicyUpdateKind.Add;
+                var objectId = Environment.GetEnvironmentVariable("OBJECT_ID");
+                var permissions = new IdentityAccessPermissions()
                 {
-                    Utilities.PrintVault(vault);
-                }
+                    Keys = 
+                    { 
+                        IdentityAccessKeyPermission.All 
+                    },
+                    Secrets = 
+                    { 
+                        IdentityAccessSecretPermission.Get, 
+                        IdentityAccessSecretPermission.List 
+                    }
+                };
+                var policy = new KeyVaultAccessPolicy(Guid.Parse(tenantId), objectId, permissions);
+                var accessPolicies = new List<KeyVaultAccessPolicy>();
+                accessPolicies.Add(policy);
+                var AccessPolicyPropertie = new KeyVaultAccessPolicyProperties(accessPolicies);
+                var keyVaultAccessPolicyParameters = new KeyVaultAccessPolicyParameters(AccessPolicyPropertie);
+                _ = await keyVault.UpdateAccessPolicyAsync(operationKind, keyVaultAccessPolicyParameters);
+                Utilities.Log("Authorized the application associated with the current service principal...");
 
                 //============================================================
+
+                // Update a key vault
+                Utilities.Log("Update a key vault to enable deployments and add permissions to the application...");
+                var permissions1 = new IdentityAccessPermissions()
+                {
+                    Secrets = 
+                    { 
+                        IdentityAccessSecretPermission.All 
+                    },
+                };
+                var patch = new KeyVaultPatch()
+                {
+                    Properties = new KeyVaultPatchProperties()
+                    {
+                        Sku = new KeyVaultSku(KeyVaultSkuFamily.A, KeyVaultSkuName.Premium),
+                        AccessPolicies = { new KeyVaultAccessPolicy(Guid.Parse(tenantId), objectId, permissions1) },
+                        EnabledForDeployment = true,
+                        EnabledForTemplateDeployment = true,
+                        NetworkRuleSet = new KeyVaultNetworkRuleSet()
+                        {
+                            Bypass = KeyVaultNetworkRuleBypassOption.AzureServices,
+                            DefaultAction = KeyVaultNetworkRuleAction.Allow,
+                        },
+                        PublicNetworkAccess = "enabled"
+                    }
+                };
+                _ = await keyVault.UpdateAsync(patch);
+                Utilities.Log("Updated a KeyVault with name:" + keyVault.Data.Name);
+
+                //============================================================
+
+                // Create another key vault
+                var vaultName2 = Utilities.CreateRandomName("vault2");
+                var properties2 = new KeyVaultProperties(Guid.Parse(tenantId), sku);
+                var content2 = new KeyVaultCreateOrUpdateContent(AzureLocation.EastUS, properties2);
+                var keyVaultLro2 = await collection.CreateOrUpdateAsync(WaitUntil.Completed, vaultName2, content2);
+                var keyVault2 = keyVaultLro2.Value;
+                Utilities.Log("Created another key vault with name:" + keyVault2.Data.Name);
+
+                // Define Access Policy
+                var operationKind2 = AccessPolicyUpdateKind.Add;
+                var permissions2 = new IdentityAccessPermissions()
+                {
+                    Keys = 
+                    { IdentityAccessKeyPermission.List, 
+                        IdentityAccessKeyPermission.Get, 
+                        IdentityAccessKeyPermission.Decrypt
+                    },
+                    Secrets =
+                    {
+                        IdentityAccessSecretPermission.Get
+                    }
+                };
+                var policy2 = new KeyVaultAccessPolicy(Guid.Parse(tenantId), objectId, permissions2);
+                var accessPolicies2 = new List<KeyVaultAccessPolicy>();
+                accessPolicies.Add(policy2);
+                var accessPolicyProperties2 = new KeyVaultAccessPolicyProperties(accessPolicies2);
+                var keyVaultAccessPolicyParameters2 = new KeyVaultAccessPolicyParameters(accessPolicyProperties2);
+                _ = await keyVault2.UpdateAccessPolicyAsync(operationKind2, keyVaultAccessPolicyParameters2);
+                Utilities.Log("Defined Access Policy");
+
+                //============================================================
+
+                // List key vaults
+                Utilities.Log("Listing key vaults...");
+                var listByResourceGroup = new List<KeyVaultResource>();
+                await foreach (var item in collection.GetAllAsync())
+                {
+                    listByResourceGroup.Add(item);
+                    Utilities.Log("KeyVaultName:" + item.Data.Name);
+                }
+                Utilities.Log("Listed key vaults"); 
+
+                //============================================================
+
                 // Delete key vaults
                 Utilities.Log("Deleting the key vaults");
-                azure.Vaults.DeleteById(vault1.Id);
-                azure.Vaults.DeleteById(vault2.Id);
+                _ = await keyVault.DeleteAsync(WaitUntil.Completed);
+                _ = await keyVault2.DeleteAsync(WaitUntil.Completed);
                 Utilities.Log("Deleted the key vaults");
             }
             finally
             {
                 try
                 {
-                    Utilities.Log("Deleting Resource Group: " + rgName);
-                    azure.ResourceGroups.DeleteByName(rgName);
-                    Utilities.Log("Deleted Resource Group: " + rgName);
+                    if (_resourceGroupId is not null)
+                    {
+                        Utilities.Log($"Deleting Resource Group: {_resourceGroupId}");
+                        await client.GetResourceGroupResource(_resourceGroupId).DeleteAsync(WaitUntil.Completed);
+                        Utilities.Log($"Deleted Resource Group: {_resourceGroupId}");
+                    }
                 }
                 catch (NullReferenceException)
                 {
@@ -136,26 +193,18 @@ namespace ManageKeyVault
             }
         }
 
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             try
             {
-                //=================================================================
-                // Authenticate
-                AzureCredentials credentials = SdkContext.AzureCredentialsFactory.FromFile(Environment.GetEnvironmentVariable("AZURE_AUTH_LOCATION"));
-
-                var azure = Azure
-                    .Configure()
-                    .WithLogLevel(HttpLoggingDelegatingHandler.Level.Basic)
-                    .Authenticate(credentials)
-                    .WithDefaultSubscription();
-
-                // Print selected subscription
-                Utilities.Log("Selected subscription: " + azure.SubscriptionId);
-
-                RunSample(azure);
-            }
-            catch (Exception e)
+                var clientId = Environment.GetEnvironmentVariable("CLIENT_ID");
+                var clientSecret = Environment.GetEnvironmentVariable("CLIENT_SECRET");
+                var tenantId = Environment.GetEnvironmentVariable("TENANT_ID");
+                var subscription = Environment.GetEnvironmentVariable("SUBSCRIPTION_ID");
+                ClientSecretCredential credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
+                ArmClient client = new ArmClient(credential, subscription);
+                await RunSample(client);
+            }catch (Exception e)
             {
                 Utilities.Log(e);
             }
